@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CPA 2026 线上学习系统 - 三色笔记版</title>
+<!-- 腾讯云COS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
@@ -41,7 +43,28 @@
   }
   .top-bar h1 { font-size: 18px; font-weight: 700; }
   .top-bar h1 span { color: var(--warn); }
-  .nav-tabs { display: flex; gap: 8px; }
+  .sync-status {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 12px;
+  }
+  .sync-status.synced { border-color: var(--success); color: var(--success); }
+  .sync-status.syncing { border-color: var(--warn); color: var(--warn); }
+  .sync-status.error { border-color: var(--danger); color: var(--danger); }
+  .sync-icon { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .sync-status.syncing .sync-icon { animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .nav-tabs { display: flex; gap: 8px; align-items: center; }
   .nav-tab {
     padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
     background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; transition: all 0.2s;
@@ -388,6 +411,25 @@
   .error-title { font-size: 14px; font-weight: 700; color: var(--danger); margin-bottom: 8px; }
   .error-text { font-size: 12px; color: var(--danger); font-family: monospace; }
 
+  .success-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--success);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 2000;
+  }
+  .success-toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
   .info-display {
     background: rgba(59,130,246,0.1); border: 1px solid var(--tax);
     border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;
@@ -405,6 +447,10 @@
   <div class="top-bar">
     <h1>CPA <span>2026</span> 线上学习系统</h1>
     <div class="nav-tabs">
+      <div class="sync-status" id="syncStatus" style="display: none;">
+        <span class="sync-icon"></span>
+        <span id="syncText">已连接</span>
+      </div>
       <div class="nav-tab active" onclick="switchPage('dashboard')">仪表盘</div>
       <div class="nav-tab" onclick="switchPage('study')">教材学习</div>
       <div class="nav-tab" onclick="switchPage('quiz')">习题练习</div>
@@ -2057,6 +2103,127 @@
     }
   ];
 
+  // 🔧 云存储配置 - 请替换为你的配置
+  const COS_CONFIG = {
+    bucket: 'cpa-study-data-你的appid', // 你的存储桶名称
+    region: 'ap-beijing', // 你的存储桶地域
+    secretId: '你的SecretId',
+    secretKey: '你的SecretKey'
+  };
+
+  // 获取或生成用户ID
+  function getUserId() {
+    let userId = localStorage.getItem('cpaUserId');
+    if (!userId) {
+      userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('cpaUserId', userId);
+    }
+    return userId;
+  }
+
+  const userId = getUserId();
+
+  // 初始化COS客户端
+  let cos = null;
+  let cloudSyncEnabled = false;
+
+  try {
+    if (typeof COS !== 'undefined' && COS_CONFIG.secretId && COS_CONFIG.secretId !== '你的SecretId') {
+      cos = new COS({
+        getAuthorization: function (options, callback) {
+          callback({
+            TmpSecretId: COS_CONFIG.secretId,
+            TmpSecretKey: COS_CONFIG.secretKey,
+          });
+        }
+      });
+      cloudSyncEnabled = true;
+      console.log('✅ 云存储已启用');
+    } else {
+      console.log('⚠️ 云存储未配置，使用本地存储');
+    }
+  } catch (e) {
+    console.error('云存储初始化失败:', e);
+  }
+
+  // 更新同步状态
+  function updateSyncStatus(status, text) {
+    const statusEl = document.getElementById('syncStatus');
+    const textEl = document.getElementById('syncText');
+
+    if (!statusEl || !textEl) return;
+
+    statusEl.classList.remove('synced', 'syncing', 'error');
+    statusEl.classList.add(status);
+    textEl.textContent = text;
+  }
+
+  // 从云端加载数据
+  async function loadFromCloud() {
+    if (!cloudSyncEnabled || !cos) return null;
+
+    try {
+      updateSyncStatus('syncing', '正在同步...');
+
+      const result = await cos.getObject({
+        Bucket: COS_CONFIG.bucket,
+        Region: COS_CONFIG.region,
+        Key: `users/${userId}/study-progress.json`,
+      });
+
+      if (result.statusCode === 200 && result.Body) {
+        const data = JSON.parse(result.Body);
+        updateSyncStatus('synced', '已同步');
+        console.log('✅ 从云端加载数据成功');
+        return data;
+      }
+
+      updateSyncStatus('synced', '本地模式');
+      return null;
+    } catch (e) {
+      console.error('从云端加载数据失败:', e);
+      updateSyncStatus('error', '同步失败');
+      return null;
+    }
+  }
+
+  // 保存数据到云端
+  async function saveToCloud(data) {
+    if (!cloudSyncEnabled || !cos) return;
+
+    try {
+      updateSyncStatus('syncing', '正在保存...');
+
+      await cos.putObject({
+        Bucket: COS_CONFIG.bucket,
+        Region: COS_CONFIG.region,
+        Key: `users/${userId}/study-progress.json`,
+        Body: JSON.stringify(data),
+      });
+
+      updateSyncStatus('synced', '已同步');
+      showToast('✅ 数据已同步到云端');
+    } catch (e) {
+      console.error('保存到云端失败:', e);
+      updateSyncStatus('error', '保存失败');
+    }
+  }
+
+  // 显示成功提示
+  function showToast(message) {
+    const toast = document.getElementById('successToast');
+    if (!toast) return;
+
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+
+  // 应用数据
+  let appData = {};
+
   // 应用数据
   let appData = {};
   
@@ -2092,9 +2259,15 @@
   if (!appData.subjectHours) appData.subjectHours = { acc: 0, tax: 0, law: 0 };
 
   // 保存数据
-  function saveAppData() {
+  async function saveAppData() {
     try {
+      // 保存到localStorage
       localStorage.setItem('cpaStudyData', JSON.stringify(appData));
+
+      // 同步到云端
+      if (cloudSyncEnabled && cos) {
+        await saveToCloud(appData);
+      }
     } catch (e) {
       console.error('保存数据失败:', e);
     }
@@ -2155,12 +2328,12 @@
   }
 
   // 切换任务状态
-  function toggleTask(taskId) {
+  async function toggleTask(taskId) {
     try {
       const task = appData.todayTasks.tasks.find(t => t.id === taskId);
       if (task) {
         task.done = !task.done;
-        saveAppData();
+        await saveAppData();
         renderDashboard();
       }
     } catch (e) {
@@ -2224,7 +2397,12 @@
       title.textContent = `${subject === 'acc' ? '会计' : subject === 'tax' ? '税法' : '经济法'} - 第${chapterNum}章 ${chapter.name}`;
       content.innerHTML = chapter.content;
 
-      const isDone = appData.chapterDone[subject][chapterNum];
+      // 确保 chapterDone[subject] 存在
+      if (!appData.chapterDone[subject]) {
+        appData.chapterDone[subject] = {};
+      }
+
+      const isDone = appData.chapterDone[subject][chapterNum] || false;
       markBtn.textContent = isDone ? '✅ 已完成阅读' : '✅ 标记为已读';
       markBtn.style.opacity = isDone ? '0.5' : '1';
       markBtn.disabled = isDone;
@@ -2232,15 +2410,16 @@
       document.getElementById('studyModal').classList.add('active');
     } catch (e) {
       console.error('打开章节失败:', e);
+      alert('打开章节失败，请重试');
     }
   }
 
   // 标记章节为已读
-  function markChapterAsRead() {
+  async function markChapterAsRead() {
     try {
       const title = document.getElementById('studyModalTitle').textContent;
-      const match = title.match(/(\w+) - 第(\d+)章/);
-      
+      const match = title.match(/(.+?) - 第(\d+)章/);
+
       if (!match) {
         console.error('无法解析章节标题:', title);
         alert('标记失败，请重试');
@@ -2259,20 +2438,36 @@
         return;
       }
 
-      if (!appData.chapterDone[subjectKey]) appData.chapterDone[subjectKey] = {};
+      // 确保 chapterDone[subjectKey] 存在
+      if (!appData.chapterDone[subjectKey]) {
+        appData.chapterDone[subjectKey] = {};
+      }
+
       appData.chapterDone[subjectKey][chapterNum] = true;
 
-      saveAppData();
-      
+      // 保存数据
+      localStorage.setItem('cpaStudyData', JSON.stringify(appData));
+
+      // 如果启用了云同步，尝试保存到云端
+      if (cloudSyncEnabled && cos) {
+        try {
+          await saveToCloud(appData);
+        } catch (syncError) {
+          console.error('云端同步失败，但本地数据已保存:', syncError);
+        }
+      }
+
       const markBtn = document.getElementById('markReadBtn');
-      markBtn.textContent = '✅ 已完成阅读';
-      markBtn.style.opacity = '0.5';
-      markBtn.disabled = true;
+      if (markBtn) {
+        markBtn.textContent = '✅ 已完成阅读';
+        markBtn.style.opacity = '0.5';
+        markBtn.disabled = true;
+      }
 
       alert('📚 章节已标记为已读！');
     } catch (e) {
       console.error('标记章节失败:', e);
-      alert('标记失败，请重试');
+      alert('标记失败，请重试: ' + e.message);
     }
   }
 
@@ -2382,7 +2577,7 @@
   }
 
   // 提交答案
-  function submitAnswer() {
+  async function submitAnswer() {
     try {
       if (selectedOptions.length === 0) {
         alert('请先选择答案！');
@@ -2411,7 +2606,7 @@
       showExplanation();
 
       appData.quizDone[currentQuiz.id] = true;
-      saveAppData();
+      await saveAppData();
 
       document.getElementById('submitBtn').style.display = 'none';
       document.getElementById('nextBtn').style.display = 'block';
@@ -2523,7 +2718,7 @@
   }
 
   // 保存数据
-  function saveData() {
+  async function saveData() {
     try {
       const subject = document.getElementById('dataSubject').value;
       const hours = parseFloat(document.getElementById('dataHours').value) || 0;
@@ -2548,7 +2743,7 @@
         exercises: exercises
       });
 
-      saveAppData();
+      await saveAppData();
 
       document.getElementById('dataHours').value = '';
       document.getElementById('dataExercises').value = '';
@@ -2594,11 +2789,26 @@
   });
 
   // 初始化
-  try {
-    renderDashboard();
-  } catch (e) {
-    console.error('初始化失败:', e);
+  async function init() {
+    try {
+      // 尝试从云端加载数据
+      const cloudData = await loadFromCloud();
+      if (cloudData) {
+        appData = { ...appData, ...cloudData };
+        console.log('✅ 从云端加载数据成功');
+      }
+
+      renderDashboard();
+    } catch (e) {
+      console.error('初始化失败:', e);
+      renderDashboard();
+    }
   }
+
+  // 启动应用
+  init();
 </script>
+
+<div class="success-toast" id="successToast">✅ 数据已同步到云端</div>
 </body>
 </html>
