@@ -2224,9 +2224,6 @@
   // 应用数据
   let appData = {};
 
-  // 应用数据
-  let appData = {};
-  
   try {
     const savedData = localStorage.getItem('cpaStudyData');
     if (savedData) {
@@ -2756,57 +2753,14 @@
     }
   }
 
-  // 监听 hash 变化
-  window.addEventListener('hashchange', function() {
-    const hash = window.location.hash.substring(1);
-    if (hash === 'data') {
-      switchPage('data');
-      renderDataPage();
-    } else if (hash === 'quiz') {
-      switchPage('quiz');
-      renderQuizList();
-    } else if (hash === 'study') {
-      switchPage('study');
-      renderChapterGrid();
-    } else if (hash === '') {
-      switchPage('dashboard');
-    }
-  });
-
-  // 页面加载时检查 hash
-  window.addEventListener('load', function() {
-    const hash = window.location.hash.substring(1);
-    if (hash === 'data') {
-      switchPage('data');
-      renderDataPage();
-    } else if (hash === 'quiz') {
-      switchPage('quiz');
-      renderQuizList();
-    } else if (hash === 'study') {
-      switchPage('study');
-      renderChapterGrid();
-    }
-  });
 
   // 初始化
-  async function init() {
-    try {
-      // 尝试从云端加载数据
-      const cloudData = await loadFromCloud();
-      if (cloudData) {
-        appData = { ...appData, ...cloudData };
-        console.log('✅ 从云端加载数据成功');
-      }
-
-      renderDashboard();
-    } catch (e) {
-      console.error('初始化失败:', e);
-      renderDashboard();
-    }
+  try {
+    renderDashboard();
+  } catch (e) {
+    console.error('初始化失败:', e);
+    renderDashboard();
   }
-
-  // 启动应用
-  init();
 </script>
 
 <div class="success-toast" id="successToast">✅ 数据已同步到云端</div>
