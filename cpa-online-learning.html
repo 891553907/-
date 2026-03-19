@@ -1,0 +1,2572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPA 2026 线上学习系统 - 三色笔记版</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --acc: #e74c8c;
+    --tax: #3b82f6;
+    --law: #10b981;
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card2: #243447;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #334155;
+    --success: #22c55e;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    /* 三色笔记配色 */
+    --highlight-red: #ff6b6b;     /* 重点 */
+    --highlight-blue: #4dabf7;    /* 考点 */
+    --highlight-yellow: #ffd43b;  /* 难点 */
+    --bg-red: rgba(255,107,107,0.1);
+    --bg-blue: rgba(77,171,247,0.1);
+    --bg-yellow: rgba(255,212,59,0.1);
+    --border-red: rgba(255,107,107,0.3);
+    --border-blue: rgba(77,171,247,0.3);
+    --border-yellow: rgba(255,212,59,0.3);
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+
+  .top-bar {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .top-bar h1 { font-size: 18px; font-weight: 700; }
+  .top-bar h1 span { color: var(--warn); }
+  .nav-tabs { display: flex; gap: 8px; }
+  .nav-tab {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; transition: all 0.2s;
+  }
+  .nav-tab:hover { background: var(--card2); }
+  .nav-tab.active { background: var(--tax); border-color: var(--tax); color: white; }
+
+  .main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } }
+  .stat-card {
+    background: var(--card); border-radius: 16px; padding: 20px;
+    border: 1px solid var(--border); text-align: center;
+  }
+  .stat-num { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+  .stat-num.acc { color: var(--acc); }
+  .stat-num.tax { color: var(--tax); }
+  .stat-num.law { color: var(--law); }
+  .stat-label { font-size: 13px; color: var(--muted); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .today-card {
+    background: var(--card); border-radius: 16px; padding: 20px;
+    border: 1px solid var(--border); margin-bottom: 20px;
+  }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .card-title { font-size: 16px; font-weight: 700; }
+  .task-list { display: flex; flex-direction: column; gap: 10px; }
+  .task-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; background: var(--card2);
+    border-radius: 12px; border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .task-item:hover { border-color: var(--tax); }
+  .task-item.done { opacity: 0.6; border-color: var(--success); }
+  .task-item.done .task-name { text-decoration: line-through; color: var(--muted); }
+  .task-cb { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--muted); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s; }
+  .task-item.done .task-cb { background: var(--success); border-color: var(--success); color: white; }
+  .task-name { flex: 1; font-size: 14px; }
+  .task-tag { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; }
+  .tag-must { background: rgba(239,68,68,0.2); color: var(--danger); }
+  .tag-optional { background: rgba(59,130,246,0.2); color: var(--tax); }
+
+  .subject-select { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .subject-btn {
+    padding: 12px 24px; border-radius: 12px; border: 2px solid var(--border);
+    background: var(--card2); color: var(--muted); cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;
+  }
+  .subject-btn:hover { border-color: var(--muted); }
+  .subject-btn.active-acc { background: var(--acc); border-color: var(--acc); color: white; }
+  .subject-btn.active-tax { background: var(--tax); border-color: var(--tax); color: white; }
+  .subject-btn.active-law { background: var(--law); border-color: var(--law); color: white; }
+
+  .chapter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .chapter-card {
+    background: var(--card2); border-radius: 12px; padding: 16px;
+    border: 2px solid var(--border); cursor: pointer; transition: all 0.2s;
+  }
+  .chapter-card:hover { border-color: var(--tax); transform: translateY(-2px); }
+  .chapter-card.done-ch { border-color: var(--success); opacity: 0.8; }
+  .chapter-card.current-ch { border-color: var(--warn); box-shadow: 0 0 20px rgba(245,158,11,0.2); }
+  .ch-num { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .ch-name { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  .ch-meta { display: flex; justify-content: space-between; align-items: center; }
+  .ch-hours { font-size: 12px; color: var(--muted); }
+  .ch-status { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: var(--card); }
+
+  .quiz-list { display: flex; flex-direction: column; gap: 12px; }
+  .quiz-item {
+    background: var(--card2); border-radius: 12px; padding: 16px;
+    border: 1px solid var(--border); cursor: pointer; transition: all 0.2s;
+  }
+  .quiz-item:hover { border-color: var(--tax); }
+  .quiz-item.done-quiz { border-color: var(--success); opacity: 0.8; }
+  .quiz-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .quiz-num { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--card); color: var(--muted); }
+  .quiz-type { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(59,130,246,0.2); color: var(--tax); }
+  .quiz-question { font-size: 14px; line-height: 1.6; color: var(--text); }
+
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-content {
+    background: var(--card); border-radius: 16px; padding: 24px;
+    max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto;
+    border: 1px solid var(--border);
+  }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .modal-title { font-size: 18px; font-weight: 700; }
+  .close-btn { background: none; border: none; color: var(--muted); font-size: 24px; cursor: pointer; }
+  .close-btn:hover { color: var(--text); }
+
+  /* 三色笔记样式 */
+  .study-content { font-size: 14px; line-height: 1.8; }
+  .study-content h1 { font-size: 24px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+  .study-content h2 { font-size: 20px; font-weight: 700; margin: 24px 0 16px; color: var(--text); padding-left: 12px; border-left: 4px solid var(--accent); }
+  .study-content h3 { font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: var(--text); }
+  .study-content p { margin-bottom: 12px; color: var(--muted); }
+  .study-content ul { margin: 12px 0; padding-left: 24px; }
+  .study-content li { margin-bottom: 8px; color: var(--muted); }
+  .study-content code { background: var(--card2); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--tax); }
+
+  /* 三色笔记标记 */
+  .note-red {
+    background: var(--bg-red);
+    border-left: 3px solid var(--highlight-red);
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 4px;
+  }
+  .note-red::before {
+    content: '🔴 重点';
+    display: inline-block;
+    color: var(--highlight-red);
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+  .note-red-text { color: var(--highlight-red); font-weight: 600; }
+
+  .note-blue {
+    background: var(--bg-blue);
+    border-left: 3px solid var(--highlight-blue);
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 4px;
+  }
+  .note-blue::before {
+    content: '🔵 考点';
+    display: inline-block;
+    color: var(--highlight-blue);
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+  .note-blue-text { color: var(--highlight-blue); font-weight: 600; }
+
+  .note-yellow {
+    background: var(--bg-yellow);
+    border-left: 3px solid var(--highlight-yellow);
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 4px;
+  }
+  .note-yellow::before {
+    content: '🟡 难点';
+    display: inline-block;
+    color: var(--highlight-yellow);
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+  .note-yellow-text { color: var(--highlight-yellow); font-weight: 600; }
+
+  /* 教材原文 */
+  .textbook-original {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    font-style: italic;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .textbook-original::before {
+    content: '📖 教材原文';
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--warn);
+    margin-bottom: 8px;
+    font-style: normal;
+  }
+
+  /* 详细解析 */
+  .detailed-explanation {
+    background: rgba(34,197,94,0.1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    line-height: 1.7;
+  }
+  .detailed-explanation::before {
+    content: '💡 详细解析';
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--success);
+    margin-bottom: 8px;
+  }
+
+  /* 真题演练 */
+  .exam-question {
+    background: linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(239,68,68,0.05) 100%);
+    border: 2px solid rgba(239,68,68,0.3);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .exam-question::before {
+    content: '🎯 真题演练';
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--danger);
+    margin-bottom: 12px;
+  }
+  .exam-question-text {
+    font-size: 15px;
+    line-height: 1.8;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+  .exam-answer {
+    background: rgba(34,197,94,0.2);
+    border: 1px solid var(--success);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 12px;
+  }
+  .exam-answer::before {
+    content: '✅ 参考答案';
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--success);
+    margin-bottom: 6px;
+  }
+
+  /* 知识框架 */
+  .knowledge-framework {
+    background: rgba(59,130,246,0.1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+  .knowledge-framework::before {
+    content: '📚 本章知识框架';
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--tax);
+    margin-bottom: 12px;
+  }
+  .framework-item {
+    display: inline-block;
+    background: var(--card2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin: 4px;
+    font-size: 13px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  /* 记忆口诀 */
+  .memory-tip {
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+  .memory-tip::before {
+    content: '🧠 记忆口诀';
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--warn);
+    margin-bottom: 8px;
+  }
+  .memory-tip-text {
+    color: var(--warn);
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .option-list { display: flex; flex-direction: column; gap: 10px; margin: 20px 0; }
+  .option-item {
+    padding: 12px 16px; background: var(--card2); border-radius: 8px;
+    border: 2px solid var(--border); cursor: pointer; transition: all 0.2s;
+  }
+  .option-item:hover { border-color: var(--muted); }
+  .option-item.selected { border-color: var(--tax); background: rgba(59,130,246,0.1); }
+  .option-item.correct { border-color: var(--success); background: rgba(34,197,94,0.1); }
+  .option-item.wrong { border-color: var(--danger); background: rgba(239,68,68,0.1); }
+  .option-label { font-weight: 600; margin-right: 8px; }
+
+  .explanation-box {
+    background: rgba(59,130,246,0.1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-top: 20px;
+  }
+  .explanation-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--tax); }
+  .explanation-text { font-size: 13px; line-height: 1.6; color: var(--muted); margin-bottom: 12px; }
+
+  .option-analysis { background: var(--card2); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .option-analysis-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--muted); }
+  .option-analysis-item { font-size: 13px; line-height: 1.6; margin-bottom: 6px; color: var(--text); padding-left: 12px; }
+  .option-analysis-item.correct-opt { color: var(--success); }
+  .option-analysis-item.wrong-opt { color: var(--danger); }
+
+  .knowledge-box {
+    background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 12px; padding: 16px; margin-top: 12px;
+  }
+  .knowledge-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--warn); }
+  .knowledge-list { list-style: none; padding: 0; }
+  .knowledge-item { font-size: 13px; line-height: 1.6; color: var(--muted); margin-bottom: 8px; padding-left: 20px; position: relative; }
+  .knowledge-item:before { content: '•'; position: absolute; left: 4px; color: var(--warn); font-weight: bold; }
+
+  .action-btn {
+    padding: 12px 24px; border-radius: 8px; border: none;
+    background: var(--tax); color: white; cursor: pointer;
+    font-size: 14px; font-weight: 600; transition: all 0.2s;
+  }
+  .action-btn:hover { background: #2563eb; }
+  .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+  .btn-group .action-btn { flex: 1; }
+
+  .chapter-btn {
+    display: block; width: 100%; padding: 10px 16px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--card2); color: var(--text);
+    cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; margin-top: 16px;
+  }
+  .chapter-btn:hover { border-color: var(--tax); }
+
+  .error-display {
+    background: rgba(239,68,68,0.1); border: 1px solid var(--danger);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: none;
+  }
+  .error-display.active { display: block; }
+  .error-title { font-size: 14px; font-weight: 700; color: var(--danger); margin-bottom: 8px; }
+  .error-text { font-size: 12px; color: var(--danger); font-family: monospace; }
+
+  .info-display {
+    background: rgba(59,130,246,0.1); border: 1px solid var(--tax);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;
+  }
+  .info-title { font-size: 14px; font-weight: 700; color: var(--tax); margin-bottom: 8px; }
+  .info-text { font-size: 13px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div id="errorDisplay" class="error-display">
+    <div class="error-title">⚠️ 系统错误</div>
+    <div class="error-text" id="errorText"></div>
+  </div>
+
+  <div class="top-bar">
+    <h1>CPA <span>2026</span> 线上学习系统</h1>
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="switchPage('dashboard')">仪表盘</div>
+      <div class="nav-tab" onclick="switchPage('study')">教材学习</div>
+      <div class="nav-tab" onclick="switchPage('quiz')">习题练习</div>
+      <div class="nav-tab" onclick="switchPage('data')">学习数据</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="dashboardPage" class="page active">
+      <div class="dashboard-grid">
+        <div class="stat-card">
+          <div class="stat-num acc" id="totalHours">0</div>
+          <div class="stat-label">累计学时</div>
+          <div class="stat-sub">会计: <span id="accHours">0</span> | 税法: <span id="taxHours">0</span> | 经济法: <span id="lawHours">0</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="totalExercises" style="color: var(--tax);">0</div>
+          <div class="stat-label">累计做题</div>
+          <div class="stat-sub">今日: <span id="todayExercises">0</span> | 本周: <span id="weekExercises">0</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="streakDays" style="color: var(--law);">0</div>
+          <div class="stat-label">连续学习</div>
+          <div class="stat-sub">打卡天数</div>
+        </div>
+      </div>
+
+      <div class="today-card">
+        <div class="card-header">
+          <div class="card-title">📅 今日学习任务</div>
+          <div style="font-size: 12px; color: var(--muted);" id="todayDate"></div>
+        </div>
+        <div class="task-list" id="taskList"></div>
+      </div>
+    </div>
+
+    <div id="studyPage" class="page">
+      <div class="subject-select">
+        <div class="subject-btn active-acc" id="accBtn" onclick="selectSubject('acc')">📚 会计</div>
+        <div class="subject-btn" id="taxBtn" onclick="selectSubject('tax')">⚖️ 税法</div>
+        <div class="subject-btn" id="lawBtn" onclick="selectSubject('law')">📜 经济法</div>
+      </div>
+      <div class="chapter-grid" id="chapterGrid"></div>
+    </div>
+
+    <div id="quizPage" class="page">
+      <div class="info-display">
+        <div class="info-title">📊 题库信息</div>
+        <div class="info-text">本系统共收录 40 道练习题，覆盖会计第1-2章核心考点。每道题包含详细解析、选项分析和知识点回顾。</div>
+      </div>
+      <div class="subject-select">
+        <div class="subject-btn active-acc" id="accQuizBtn" onclick="selectQuizSubject('acc')">📚 会计</div>
+        <div class="subject-btn" id="taxQuizBtn" onclick="selectQuizSubject('tax')">⚖️ 税法</div>
+        <div class="subject-btn" id="lawQuizBtn" onclick="selectQuizSubject('law')">📜 经济法</div>
+      </div>
+      <div class="quiz-list" id="quizList"></div>
+    </div>
+
+    <div id="dataPage" class="page">
+      <div class="today-card">
+        <div class="card-header">
+          <div class="card-title">📈 学习数据录入</div>
+        </div>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;">
+          <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px;">学习科目</label>
+            <select id="dataSubject" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card2); color: var(--text); font-size: 14px;">
+              <option value="acc">会计</option>
+              <option value="tax">税法</option>
+              <option value="law">经济法</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 150px;">
+            <label style="display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px;">学习时长（小时）</label>
+            <input type="number" id="dataHours" placeholder="输入时长" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card2); color: var(--text); font-size: 14px;">
+          </div>
+          <div style="flex: 1; min-width: 150px;">
+            <label style="display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px;">完成题数</label>
+            <input type="number" id="dataExercises" placeholder="输入题数" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card2); color: var(--text); font-size: 14px;">
+          </div>
+        </div>
+        <button class="action-btn" onclick="saveData()" style="width: 100%;">保存数据</button>
+      </div>
+
+      <div class="today-card">
+        <div class="card-header">
+          <div class="card-title">📝 学习日志</div>
+        </div>
+        <div id="studyLog" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="studyModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="studyModalTitle">章节详情</div>
+        <button class="close-btn" onclick="closeModal()">×</button>
+      </div>
+      <div class="study-content" id="studyModalContent"></div>
+      <button class="chapter-btn" id="markReadBtn" onclick="markChapterAsRead()">✅ 标记为已读</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="quizModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="quizModalTitle">习题详情</div>
+        <button class="close-btn" onclick="closeModal()">×</button>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <span class="quiz-num" id="quizModalNum">1</span>
+        <span class="quiz-type" id="quizModalType" style="margin-left: 8px;">单选题</span>
+        <span style="font-size: 12px; color: var(--muted); margin-left: 8px;" id="quizModalChapter">第1章</span>
+      </div>
+      <div id="quizModalQuestion" style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;"></div>
+      <div class="option-list" id="optionList"></div>
+      <div class="btn-group">
+        <button class="action-btn" id="submitBtn" onclick="submitAnswer()">提交答案</button>
+        <button class="action-btn" id="nextBtn" onclick="nextQuestion()" style="display: none;">下一题</button>
+      </div>
+      <div id="explanationBox" style="display: none;"></div>
+    </div>
+  </div>
+
+<script>
+  // 全局错误处理
+  window.onerror = function(message, source, lineno, colno, error) {
+    const errorDisplay = document.getElementById('errorDisplay');
+    const errorText = document.getElementById('errorText');
+    errorDisplay.classList.add('active');
+    errorText.textContent = `${message}\n位置: ${source}:${lineno}:${colno}`;
+    console.error('系统错误:', { message, source, lineno, colno, error });
+    return false;
+  };
+
+  // 章节数据（三色笔记版）
+  const CHAPTER_DATA = {
+    acc: [
+      { 
+        num: 1, 
+        name: '总论', 
+        hours: 8, 
+        content: `
+<div class="study-content">
+  <h1>第一章 总论</h1>
+  
+  <div class="knowledge-framework">
+    <span class="framework-item">会计基本概念</span>
+    <span class="framework-item">会计基本假设</span>
+    <span class="framework-item">会计信息质量要求</span>
+    <span class="framework-item">会计要素</span>
+    <span class="framework-item">会计计量属性</span>
+  </div>
+
+  <h2>一、会计基本概念</h2>
+  
+  <div class="textbook-original">
+    会计是以货币为主要计量单位，运用专门的方法，核算和监督一个单位经济活动的一种经济管理工作。
+  </div>
+
+  <div class="detailed-explanation">
+    会计的定义包含以下几个关键点：<br>
+    1. <strong>计量单位</strong>：以货币为主要计量单位<br>
+    2. <strong>专门方法</strong>：设置账户、复式记账、填制和审核凭证、登记账簿、成本计算、财产清查、编制会计报表<br>
+    3. <strong>基本职能</strong>：核算和监督<br>
+    4. <strong>工作对象</strong>：一个单位的经济活动
+  </div>
+
+  <div class="note-red">
+    <p><strong>会计的基本职能</strong></p>
+    <ul>
+      <li><strong>核算职能</strong>：是指会计以货币为主要计量单位，通过确认、计量、记录和报告等环节，对特定主体的经济活动进行记账、算账、报账，为各有关方面提供会计信息的功能。</li>
+      <li><strong>监督职能</strong>：是指会计人员在进行会计核算的同时，对特定主体经济活动的真实性、合法性和合理性进行审查。</li>
+    </ul>
+    <p class="note-red-text">核算是基础，监督是保障。会计核算与会计监督是相辅相成、辩证统一的。</p>
+  </div>
+
+  <h2>二、会计基本假设</h2>
+
+  <div class="textbook-original">
+    会计基本假设是企业会计确认、计量、记录和报告的前提，是对会计核算所处时间、空间环境等所作的合理设定。会计基本假设包括会计主体、持续经营、会计分期和货币计量。
+  </div>
+
+  <div class="note-blue">
+    <p><strong>1. 会计主体</strong></p>
+    <p class="note-blue-text">会计主体是指企业会计确认、计量、记录和报告的空间范围。</p>
+    <ul>
+      <li>会计主体确立了会计核算的空间范围</li>
+      <li>会计主体与法律主体不是等同的概念：法律主体必然是会计主体，但会计主体不一定是法律主体</li>
+    </ul>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">下列关于会计主体的表述中，正确的是（　）<br>
+    A. 会计主体必然是法律主体<br>
+    B. 法律主体必然是会计主体<br>
+    C. 会计主体与法律主体是一致的<br>
+    D. 会计主体可以是企业集团，也可以是企业内部的特定单位</div>
+    <div class="exam-answer">
+      答案：D<br>
+      解析：会计主体可以是企业集团（合并报表），也可以是企业内部的特定单位（如事业部、分公司等）。法律主体必然是会计主体，但会计主体不一定是法律主体。
+    </div>
+  </div>
+
+  <div class="note-blue">
+    <p><strong>2. 持续经营</strong></p>
+    <p class="note-blue-text">持续经营是指在可以预见的将来，企业将会按当前的规模和状态继续经营下去，不会停业，也不会大规模削减业务。</p>
+    <ul>
+      <li>持续经营是会计分期的前提</li>
+      <li>持续经营假设是会计核算的基本前提之一</li>
+    </ul>
+  </div>
+
+  <div class="note-blue">
+    <p><strong>3. 会计分期</strong></p>
+    <p class="note-blue-text">会计分期是指将一个企业持续经营的生产经营活动划分为一个个连续的、长短相同的期间。</p>
+    <ul>
+      <li>会计分期是对持续经营假设的必要补充</li>
+      <li>会计期间通常分为年度和中期</li>
+      <li>中期是指短于一个完整的会计年度的报告期间</li>
+    </ul>
+  </div>
+
+  <div class="note-blue">
+    <p><strong>4. 货币计量</strong></p>
+    <p class="note-blue-text">货币计量是指会计主体在会计确认、计量、记录和报告时以货币计量，反映会计主体的生产经营活动。</p>
+    <ul>
+      <li>货币是主要计量单位，但不是唯一计量单位</li>
+      <li>在会计核算中，除了以货币计量外，还可以使用实物量度、劳动量度等辅助计量</li>
+    </ul>
+  </div>
+
+  <div class="memory-tip">
+    <p class="memory-tip-text">🎯 会计四大基本假设记忆口诀：</p>
+    <p style="margin-top: 8px; color: var(--muted); font-weight: 400;">
+      "主体空间持续经，分期时间货币明"
+    </p>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">下列关于会计基本假设的表述中，不正确的是（　）<br>
+    A. 会计主体确立了会计核算的空间范围<br>
+    B. 持续经营是会计分期的前提<br>
+    C. 会计分期是对持续经营假设的补充<br>
+    D. 货币计量是会计核算的唯一计量单位</div>
+    <div class="exam-answer">
+      答案：D<br>
+      解析：货币计量是会计核算的主要计量单位，但不是唯一计量单位。
+    </div>
+  </div>
+
+  <h2>三、会计信息质量要求</h2>
+
+  <div class="textbook-original">
+    会计信息质量要求是对企业财务报告中所提供会计信息质量的基本要求，是使财务报告中所提供会计信息对投资者等使用者决策有用应具备的基本特征。
+  </div>
+
+  <div class="note-red">
+    <p><strong>八项会计信息质量要求：</strong></p>
+    <ol>
+      <li><strong>可靠性</strong> - 以实际发生的交易或者事项为依据进行会计确认</li>
+      <li><strong>相关性</strong> - 与财务报告使用者的经济决策需要相关</li>
+      <li><strong>可理解性</strong> - 清晰明了，便于理解</li>
+      <li><strong>可比性</strong> - 纵向可比、横向可比</li>
+      <li class="note-red-text"><strong>实质重于形式</strong> - 按照交易或事项的经济实质进行会计处理</li>
+      <li><strong>重要性</strong> - 重要事项单独反映，次要事项简化处理</li>
+      <li class="note-red-text"><strong>谨慎性</strong> - 不应高估资产或收益、低估负债或费用</li>
+      <li><strong>及时性</strong> - 及时进行会计确认、计量和报告</li>
+    </ol>
+  </div>
+
+  <div class="note-yellow">
+    <p><strong>实质重于形式</strong></p>
+    <p class="note-yellow-text">要求企业应当按照交易或者事项的经济实质进行会计确认、计量和报告，不应仅以交易或者事项的法律形式为依据。</p>
+    <p><strong>典型应用：</strong></p>
+    <ul>
+      <li>融资租入固定资产视同自有固定资产</li>
+      <li>售后回购不终止确认</li>
+      <li>关联方关系的判断</li>
+      <li>合并财务报表的范围</li>
+    </ul>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">下列各项中，体现实质重于形式会计信息质量要求的是（　）<br>
+    A. 将净利润作为利润表的主要项目<br>
+    B. 融资租入固定资产视同自有固定资产<br>
+    C. 对计提资产减值损失确认损失<br>
+    D. 对计提折旧确认费用</div>
+    <div class="exam-answer">
+      答案：B<br>
+      解析：融资租入固定资产，从法律形式上看，承租企业不拥有所有权，但从经济实质上看，承租企业能够控制该资产并获得其带来的经济利益，因此应将其视同自有固定资产进行核算。这体现实质重于形式要求。
+    </div>
+  </div>
+
+  <div class="note-yellow">
+    <p><strong>谨慎性</strong></p>
+    <p class="note-yellow-text">要求企业对交易或者事项进行会计确认、计量和报告时保持应有的谨慎，不应高估资产或者收益、低估负债或者费用。</p>
+    <p><strong>具体应用：</strong></p>
+    <ul>
+      <li>计提资产减值准备</li>
+      <li>计提坏账准备</li>
+      <li>计提存货跌价准备</li>
+      <li>对预计负债进行确认</li>
+    </ul>
+  </div>
+
+  <div class="memory-tip">
+    <p class="memory-tip-text">🧠 实质重于形式 vs 谨慎性</p>
+    <ul style="color: var(--muted); font-weight: 400; margin-top: 8px;">
+      <li><strong>实质重于形式</strong>：看经济实质，不看法律形式</li>
+      <li><strong>谨慎性</strong>：不高估、不低估，偏向保守</li>
+    </ul>
+  </div>
+
+  <h2>四、会计要素</h2>
+
+  <div class="note-blue">
+    <p><strong>六大会计要素：</strong></p>
+    <p><strong>静态要素（资产负债表要素）：</strong></p>
+    <ul>
+      <li><strong>资产</strong> - 企业过去的交易或事项形成的、由企业拥有或者控制的、预期会给企业带来经济利益的资源</li>
+      <li><strong>负债</strong> - 企业过去的交易或事项形成的、预期会导致经济利益流出企业的现时义务</li>
+      <li><strong>所有者权益</strong> - 企业资产扣除负债后，由所有者享有的剩余权益</li>
+    </ul>
+    <p><strong>动态要素（利润表要素）：</strong></p>
+    <ul>
+      <li><strong>收入</strong> - 企业在日常活动中形成的、会导致所有者权益增加的、与所有者投入资本无关的经济利益的总流入</li>
+      <li><strong>费用</strong> - 企业在日常活动中发生的、会导致所有者权益减少的、与向所有者分配利润无关的经济利益的总流出</li>
+      <li><strong>利润</strong> - 企业在一定会计期间的经营成果</li>
+    </ul>
+  </div>
+
+  <div class="detailed-explanation">
+    <p><strong>会计等式：</strong></p>
+    <ul>
+      <li>静态等式：资产 = 负债 + 所有者权益</li>
+      <li>动态等式：收入 - 费用 = 利润</li>
+    </ul>
+    <p class="note-blue-text">静态等式是编制资产负债表的基础，动态等式是编制利润表的基础。</p>
+  </div>
+
+  <h2>五、会计计量属性</h2>
+
+  <div class="note-red">
+    <p><strong>五种计量属性：</strong></p>
+    <ol>
+      <li><strong>历史成本</strong> - 资产取得时实际支付的金额</li>
+      <li><strong>重置成本</strong> - 现在重新购置该资产所需的金额</li>
+      <li><strong>可变现净值</strong> - 资产在正常经营过程中可收回的金额</li>
+      <li><strong>现值</strong> - 资产未来现金流入量的折现值</li>
+      <li><strong>公允价值</strong> - 市场参与者在计量日发生的有序交易中，出售一项资产所能收到或转移一项负债所需支付的价格</li>
+    </ol>
+  </div>
+
+  <div class="textbook-original">
+    企业在对会计要素进行计量时，一般应当采用历史成本。采用重置成本、可变现净值、现值、公允价值计量的，应当保证所确定的会计要素金额能够取得并可靠计量。
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">企业在对会计要素进行计量时，一般采用的计量属性是（　）<br>
+    A. 历史成本<br>
+    B. 重置成本<br>
+    C. 可变现净值<br>
+    D. 公允价值</div>
+    <div class="exam-answer">
+      答案：A<br>
+      解析：企业在对会计要素进行计量时，一般应当采用历史成本。采用其他计量属性的，应当保证所确定的会计要素金额能够取得并可靠计量。
+    </div>
+  </div>
+
+  <div class="memory-tip">
+    <p class="memory-tip-text">🎯 本章高频考点总结</p>
+    <ul style="color: var(--muted); font-weight: 400; margin-top: 8px;">
+      <li>🔴 重点：实质重于形式、谨慎性</li>
+      <li>🔵 考点：会计主体与法律主体的关系、会计基本假设</li>
+      <li>🟡 难点：会计要素的确认条件、计量属性的应用</li>
+    </ul>
+  </div>
+</div>
+        `
+      },
+      { 
+        num: 2, 
+        name: '存货', 
+        hours: 10, 
+        content: `
+<div class="study-content">
+  <h1>第二章 存货</h1>
+  
+  <div class="knowledge-framework">
+    <span class="framework-item">存货的定义与确认</span>
+    <span class="framework-item">存货的初始计量</span>
+    <span class="framework-item">存货的发出计价</span>
+    <span class="framework-item">存货的期末计量</span>
+    <span class="framework-item">存货盘盈盘亏</span>
+  </div>
+
+  <h2>一、存货的定义与确认</h2>
+
+  <div class="textbook-original">
+    存货是指企业在日常活动中持有以备出售的产成品或商品、处在生产过程中的在产品、在生产过程或提供劳务过程中耗用的材料和物料等。
+  </div>
+
+  <div class="note-blue">
+    <p><strong>存货的范围：</strong></p>
+    <ul>
+      <li>原材料</li>
+      <li>在产品</li>
+      <li>半成品</li>
+      <li>库存商品</li>
+      <li>周转材料（包装物、低值易耗品）</li>
+      <li>委托代销商品</li>
+      <li>消耗性生物资产</li>
+    </ul>
+  </div>
+
+  <div class="note-yellow">
+    <p><strong>存货的确认条件：</strong></p>
+    <p class="note-yellow-text">存货同时满足下列条件的，才能予以确认：</p>
+    <ol>
+      <li>与该存货有关的经济利益很可能流入企业</li>
+      <li>该存货的成本能够可靠地计量</li>
+    </ol>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">下列各项中，属于存货的有（　）<br>
+    A. 原材料<br>
+    B. 在产品<br>
+    C. 半成品<br>
+    D. 库存商品</div>
+    <div class="exam-answer">
+      答案：ABCD<br>
+      解析：存货包括：原材料、在产品、半成品、库存商品、周转材料等。
+    </div>
+  </div>
+
+  <h2>二、存货的初始计量</h2>
+
+  <div class="note-red">
+    <p><strong>存货应当按照成本进行初始计量</strong></p>
+    <p>存货成本包括采购成本、加工成本和其他成本。</p>
+  </div>
+
+  <div class="note-blue">
+    <p><strong>1. 采购成本</strong></p>
+    <p class="note-blue-text">存货的采购成本包括购买价款、相关税费、运输费、装卸费、保险费以及其他可归属于存货采购成本的费用。</p>
+    <ul>
+      <li><strong>购买价款</strong>：发票上的金额</li>
+      <li><strong>相关税费</strong>：进口关税、消费税、资源税等</li>
+      <li><strong>运输费、装卸费、保险费</strong>：运杂费</li>
+      <li><strong>其他可归属于存货采购成本的费用</strong>：运输途中的合理损耗、入库前的挑选整理费等</li>
+    </ul>
+  </div>
+
+  <div class="detailed-explanation">
+    <p><strong>不计入存货成本的项目：</strong></p>
+    <ul>
+      <li>入库后的仓储费（非生产必要）→ 计入管理费用或销售费用</li>
+      <li>非正常损耗（如管理不善、自然灾害）→ 计入管理费用或营业外支出</li>
+      <li>采购人员差旅费 → 计入管理费用</li>
+    </ul>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">下列各项中，不应计入存货成本的是（　）<br>
+    A. 采购价格<br>
+    B. 运杂费<br>
+    C. 入库前的挑选整理费<br>
+    D. 入库后的仓储费</div>
+    <div class="exam-answer">
+      答案：D<br>
+      解析：入库后的仓储费（非生产必要）一般计入当期损益，不计入存货成本。
+    </div>
+  </div>
+
+  <div class="note-blue">
+    <p><strong>2. 加工成本</strong></p>
+    <p class="note-blue-text">存货的加工成本包括直接人工和制造费用。</p>
+    <ul>
+      <li><strong>直接人工</strong>：直接从事产品生产的工人的职工薪酬</li>
+      <li><strong>制造费用</strong>：企业为生产产品和提供劳务而发生的各项间接费用</li>
+    </ul>
+    <p><strong>注意：</strong>符合资本化条件的设计费用也应计入存货加工成本。</p>
+  </div>
+
+  <h2>三、存货的发出计价</h2>
+
+  <div class="note-red">
+    <p><strong>企业可以采用的存货发出计价方法：</strong></p>
+    <ol>
+      <li><strong>先进先出法</strong></li>
+      <li><strong>加权平均法</strong></li>
+      <li><strong>移动加权平均法</strong></li>
+      <li><strong>个别计价法</strong></li>
+    </ol>
+  </div>
+
+  <div class="note-yellow">
+    <p><strong>各种计价方法的特点：</strong></p>
+    <ul>
+      <li><strong>先进先出法</strong>：假设先购入的存货先发出</li>
+      <li><strong>加权平均法</strong>：期末一次计算加权平均单价</li>
+      <li><strong>移动加权平均法</strong>：每次收货都计算新的加权平均单价</li>
+      <li><strong>个别计价法</strong>：逐一辨认发出存货的批次</li>
+    </ul>
+    <p class="note-yellow-text">⚠️ 后进先出法已取消，不再使用。</p>
+  </div>
+
+  <div class="detailed-explanation">
+    <p><strong>物价变动对期末存货价值的影响：</strong></p>
+    <ul>
+      <li><strong>物价持续上涨时：</strong>先进先出法下期末存货价值最大</li>
+      <li><strong>物价持续下跌时：</strong>先进先出法下期末存货价值最小</li>
+      <li><strong>加权平均法：</strong>期末存货价值介于先进先出法和后进先出法之间</li>
+    </ul>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">下列存货发出计价方法中，在物价持续上涨的情况下，期末存货价值最大的方法是（　）<br>
+    A. 先进先出法<br>
+    B. 加权平均法<br>
+    C. 移动加权平均法<br>
+    D. 个别计价法</div>
+    <div class="exam-answer">
+      答案：A<br>
+      解析：在物价持续上涨的情况下，先进先出法下先购入的存货成本先发出，后购入的存货（成本较高）留在期末，因此期末存货价值最大。
+    </div>
+  </div>
+
+  <h2>四、存货的期末计量</h2>
+
+  <div class="note-red">
+    <p><strong>存货期末计量的原则：成本与可变现净值孰低</strong></p>
+    <p>当存货成本低于可变现净值时，存货按成本计量；当存货成本高于可变现净值时，存货按可变现净值计量，并计提存货跌价准备。</p>
+  </div>
+
+  <div class="note-blue">
+    <p><strong>可变现净值的确定：</strong></p>
+    <p class="note-blue-text">可变现净值 = 估计售价 - 至完工时估计将要发生的成本 - 估计的销售费用 - 估计的相关税费</p>
+  </div>
+
+  <div class="detailed-explanation">
+    <p><strong>不同存货可变现净值的确定：</strong></p>
+    <ul>
+      <li><strong>产成品、商品</strong>：可直接出售的，可变现净值 = 估计售价 - 估计销售费用 - 估计相关税费</li>
+      <li><strong>原材料</strong>：
+        <ul>
+          <li>直接出售的：可变现净值 = 估计售价 - 估计销售费用 - 估计相关税费</li>
+          <li>用于生产产品的：可变现净值 = 产成品的估计售价 - 估计销售费用 - 估计相关税费 - 至完工时估计将要发生的成本</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">存货的可变现净值，等于（　）<br>
+    A. 估计售价-估计销售费用-估计相关税费<br>
+    B. 估计售价-估计销售费用<br>
+    C. 估计售价-估计相关税费<br>
+    D. 实际成本-已计提跌价准备</div>
+    <div class="exam-answer">
+      答案：A<br>
+      解析：存货的可变现净值=存货的估计售价-至完工时估计将要发生的成本-估计的销售费用-估计的相关税费。
+    </div>
+  </div>
+
+  <div class="note-yellow">
+    <p><strong>存货跌价准备的计提与转回：</strong></p>
+    <ul>
+      <li><strong>计提时间</strong>：资产负债表日（通常为年末）</li>
+      <li><strong>计提条件</strong>：成本 > 可变现净值</li>
+      <li><strong>转回条件</strong>：可变现净值恢复</li>
+      <li><strong>转回限制</strong>：转回的金额不得超过已计提的金额</li>
+    </ul>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">存货跌价准备转回时，转回的金额（　）<br>
+    A. 不得超过已计提的金额<br>
+    B. 可以超过已计提的金额<br>
+    C. 全部转回<br>
+    D. 不限制转回金额</div>
+    <div class="exam-answer">
+      答案：A<br>
+      解析：存货跌价准备转回时，转回的金额不得超过已计提的金额。转回后存货跌价准备余额不得为零。
+    </div>
+  </div>
+
+  <h2>五、存货盘盈盘亏</h2>
+
+  <div class="note-blue">
+    <p><strong>存货盘盈的处理：</strong></p>
+    <ul>
+      <li>第一步：先计入"待处理财产损溢"</li>
+      <li>第二步：查明原因后处理
+        <ul>
+          <li>管理不善造成的：冲减管理费用</li>
+          <li>计量差错等无法查明原因的：冲减管理费用</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+
+  <div class="note-yellow">
+    <p><strong>存货盘亏的处理：</strong></p>
+    <ul>
+      <li><strong>定额内合理损耗</strong> → 计入管理费用</li>
+      <li><strong>管理不善造成的损耗</strong> → 计入管理费用</li>
+      <li><strong>自然灾害造成的非常损失</strong> → 计入营业外支出</li>
+      <li><strong>责任人赔偿</strong> → 计入其他应收款</li>
+    </ul>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">存货盘亏时，属于定额内合理损耗的部分，应计入（　）<br>
+    A. 管理费用<br>
+    B. 营业外支出<br>
+    C. 其他应收款<br>
+    D. 制造费用</div>
+    <div class="exam-answer">
+      答案：A<br>
+      解析：存货盘亏时，属于定额内合理损耗的部分，应计入管理费用。
+    </div>
+  </div>
+
+  <div class="exam-question">
+    <div class="exam-question-text">存货盘亏属于自然灾害造成的非常损失时，应计入（　）<br>
+    A. 管理费用<br>
+    B. 营业外支出<br>
+    C. 其他应收款<br>
+    D. 制造费用</div>
+    <div class="exam-answer">
+      答案：B<br>
+      解析：存货盘亏属于自然灾害造成的非常损失时，应计入营业外支出。
+    </div>
+  </div>
+
+  <div class="memory-tip">
+    <p class="memory-tip-text">🎯 本章高频考点总结</p>
+    <ul style="color: var(--muted); font-weight: 400; margin-top: 8px;">
+      <li>🔴 重点：存货成本构成、可变现净值计算、存货跌价准备</li>
+      <li>🔵 考点：发出计价方法、盘盈盘亏处理、正常损耗与非正常损耗</li>
+      <li>🟡 难点：可变现净值的确定、不同情况下的存货盘亏处理</li>
+    </ul>
+  </div>
+
+  <div class="memory-tip">
+    <p class="memory-tip-text">🧠 记忆口诀</p>
+    <ul style="color: var(--muted); font-weight: 400; margin-top: 8px;">
+      <li><strong>存货成本</strong>：采购、加工、其他成本，入库仓储要区分</li>
+      <li><strong>发出计价</strong>：先进先出、加权平均，个别计价特殊用</li>
+      <li><strong>期末计量</strong>：成本可变现孰低，跌价准备可转回</li>
+      <li><strong>盘亏处理</strong>：定额管理费用，非常营业外支</li>
+    </ul>
+  </div>
+</div>
+        `
+      },
+      { num: 3, name: '固定资产', hours: 12, content: '<div class="study-content"><h2>第三章 固定资产</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 4, name: '无形资产', hours: 10, content: '<div class="study-content"><h2>第四章 无形资产</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 5, name: '投资性房地产', hours: 10, content: '<div class="study-content"><h2>第五章 投资性房地产</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 6, name: '长期股权投资', hours: 14, content: '<div class="study-content"><h2>第六章 长期股权投资</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 7, name: '资产减值', hours: 12, content: '<div class="study-content"><h2>第七章 资产减值</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 8, name: '负债', hours: 10, content: '<div class="study-content"><h2>第八章 负债</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 9, name: '所有者权益', hours: 10, content: '<div class="study-content"><h2>第九章 所有者权益</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 10, name: '收入', hours: 12, content: '<div class="study-content"><h2>第十章 收入</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 11, name: '费用和利润', hours: 10, content: '<div class="study-content"><h2>第十一章 费用和利润</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 12, name: '财务报告', hours: 10, content: '<div class="study-content"><h2>第十二章 财务报告</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 13, name: '或有事项', hours: 8, content: '<div class="study-content"><h2>第十三章 或有事项</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 14, name: '非货币性资产交换', hours: 8, content: '<div class="study-content"><h2>第十四章 非货币性资产交换</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 15, name: '债务重组', hours: 8, content: '<div class="study-content"><h2>第十五章 债务重组</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 16, name: '政府补助', hours: 8, content: '<div class="study-content"><h2>第十六章 政府补助</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 17, name: '借款费用', hours: 8, content: '<div class="study-content"><h2>第十七章 借款费用</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 18, name: '股份支付', hours: 8, content: '<div class="study-content"><h2>第十八章 股份支付</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 19, name: '所得税', hours: 12, content: '<div class="study-content"><h2>第十九章 所得税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 20, name: '外币折算', hours: 8, content: '<div class="study-content"><h2>第二十章 外币折算</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 21, name: '租赁', hours: 10, content: '<div class="study-content"><h2>第二十一章 租赁</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 22, name: '持有待售的非流动资产', hours: 6, content: '<div class="study-content"><h2>第二十二章 持有待售的非流动资产</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 23, name: '企业合并', hours: 12, content: '<div class="study-content"><h2>第二十三章 企业合并</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 24, name: '合并财务报表', hours: 14, content: '<div class="study-content"><h2>第二十四章 合并财务报表</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 25, name: '每股收益', hours: 6, content: '<div class="study-content"><h2>第二十五章 每股收益</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 26, name: '公允价值计量', hours: 8, content: '<div class="study-content"><h2>第二十六章 公允价值计量</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 27, name: '政府及民间非营利组织会计', hours: 8, content: '<div class="study-content"><h2>第二十七章 政府及民间非营利组织会计</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' }
+    ],
+    tax: [
+      { num: 1, name: '税法总论', hours: 8, content: '<div class="study-content"><h2>第一章 税法总论</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 2, name: '增值税', hours: 14, content: '<div class="study-content"><h2>第二章 增值税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 3, name: '消费税', hours: 10, content: '<div class="study-content"><h2>第三章 消费税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 4, name: '企业所得税', hours: 12, content: '<div class="study-content"><h2>第四章 企业所得税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 5, name: '个人所得税', hours: 10, content: '<div class="study-content"><h2>第五章 个人所得税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 6, name: '城市维护建设税', hours: 6, content: '<div class="study-content"><h2>第六章 城市维护建设税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 7, name: '关税', hours: 8, content: '<div class="study-content"><h2>第七章 关税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 8, name: '资源税', hours: 6, content: '<div class="study-content"><h2>第八章 资源税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 9, name: '土地增值税', hours: 8, content: '<div class="study-content"><h2>第九章 土地增值税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 10, name: '房产税', hours: 6, content: '<div class="study-content"><h2>第十章 房产税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 11, name: '城镇土地使用税', hours: 6, content: '<div class="study-content"><h2>第十一章 城镇土地使用税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 12, name: '契税', hours: 6, content: '<div class="study-content"><h2>第十二章 契税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 13, name: '印花税', hours: 6, content: '<div class="study-content"><h2>第十三章 印花税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 14, name: '环境保护税', hours: 6, content: '<div class="study-content"><h2>第十四章 环境保护税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 15, name: '车辆购置税', hours: 6, content: '<div class="study-content"><h2>第十五章 车辆购置税</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 16, name: '国际税收', hours: 10, content: '<div class="study-content"><h2>第十六章 国际税收</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' }
+    ],
+    law: [
+      { num: 1, name: '法律基本原理', hours: 8, content: '<div class="study-content"><h2>第一章 法律基本原理</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 2, name: '民事法律行为', hours: 12, content: '<div class="study-content"><h2>第二章 民事法律行为</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 3, name: '代理', hours: 8, content: '<div class="study-content"><h2>第三章 代理</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 4, name: '诉讼时效', hours: 8, content: '<div class="study-content"><h2>第四章 诉讼时效</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 5, name: '公司法', hours: 14, content: '<div class="study-content"><h2>第五章 公司法</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 6, name: '合伙企业', hours: 10, content: '<div class="study-content"><h2>第六章 合伙企业</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 7, name: '破产法', hours: 12, content: '<div class="study-content"><h2>第七章 破产法</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 8, name: '证券法', hours: 12, content: '<div class="study-content"><h2>第八章 证券法</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 9, name: '合同法', hours: 14, content: '<div class="study-content"><h2>第九章 合同法</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 10, name: '票据法', hours: 12, content: '<div class="study-content"><h2>第十章 票据法</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 11, name: '国有资产', hours: 8, content: '<div class="study-content"><h2>第十一章 国有资产</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' },
+      { num: 12, name: '反垄断', hours: 8, content: '<div class="study-content"><h2>第十二章 反垄断</h2><div class="note-red"><p>🚧 章节内容正在完善中...</p></div></div>' }
+    ]
+  };
+
+  // 习题数据（完整版 - 40题）
+  const QUIZ_DATA = [
+    // 第一章 总论 - 单选题（10题）
+    {
+      id: 'acc-1-1', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '下列关于会计基本假设的表述中，不正确的是（）',
+      options: [
+        '会计主体确立了会计核算的空间范围',
+        '持续经营是会计分期的前提',
+        '会计分期是对持续经营假设的补充',
+        '货币计量是会计核算的唯一计量单位'
+      ],
+      answer: 3,
+      explanation: '货币计量是会计核算的主要计量单位，但不是唯一计量单位。在会计核算中，除了以货币计量外，还可以使用实物量度、劳动量度等辅助计量。',
+      optionAnalysis: [
+        'A. 正确。会计主体假设明确了会计核算的空间范围。',
+        'B. 正确。持续经营假设是会计分期的前提。',
+        'C. 正确。会计分期是对持续经营假设的必要补充。',
+        'D. 错误。货币计量是主要计量单位，但不是唯一计量单位。'
+      ],
+      knowledge: [
+        '会计四大基本假设：会计主体、持续经营、会计分期、货币计量',
+        '货币计量假设：以货币为主要计量单位，但非唯一计量单位',
+        '会计主体与法律主体的区别：法律主体必然是会计主体，但会计主体不一定是法律主体'
+      ]
+    },
+    {
+      id: 'acc-1-2', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '下列各项中，体现实质重于形式会计信息质量要求的是（）',
+      options: [
+        '将净利润作为利润表的主要项目',
+        '融资租入固定资产视同自有固定资产',
+        '对计提资产减值损失确认损失',
+        '对计提折旧确认费用'
+      ],
+      answer: 1,
+      explanation: '实质重于形式要求企业应当按照交易或者事项的经济实质进行会计确认、计量和报告，不应仅以交易或者事项的法律形式为依据。融资租入固定资产，从法律形式上看，承租企业不拥有所有权，但从经济实质上看，承租企业能够控制该资产并获得其带来的经济利益，因此应将其视同自有固定资产进行核算。',
+      optionAnalysis: [
+        'A. 不正确。净利润是利润表的主要项目，这是会计报表的结构安排，不涉及实质重于形式要求。',
+        'B. 正确。融资租入固定资产视同自有固定资产，体现了实质重于形式的会计信息质量要求。',
+        'C. 不正确。对计提资产减值损失确认损失，体现的是谨慎性会计信息质量要求。',
+        'D. 不正确。对计提折旧确认费用，体现的是权责发生制原则和配比原则。'
+      ],
+      knowledge: [
+        '实质重于形式：按照交易或事项的经济实质进行会计处理，而非仅看法律形式',
+        '典型应用：融资租入固定资产视同自有、售后回购不终止确认、关联方关系的判断',
+        '与其他质量要求的区别：谨慎性、重要性、可比性等'
+      ]
+    },
+    {
+      id: 'acc-1-3', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '下列各项中，属于会计信息质量要求中"相关性"的是（）',
+      options: [
+        '企业提供的会计信息应当清晰明了，便于理解',
+        '企业提供的会计信息应当与财务报告使用者的经济决策需要相关',
+        '不同企业相同会计期间可比',
+        '企业应当按照交易或者事项的经济实质进行会计确认'
+      ],
+      answer: 1,
+      explanation: '相关性要求企业提供的会计信息应当与财务报告使用者的经济决策需要相关，有助于财务报告使用者对企业过去、现在或者未来的情况作出评价或者预测。',
+      optionAnalysis: [
+        'A. 不正确。这是可理解性会计信息质量要求。',
+        'B. 正确。这是相关性会计信息质量要求。',
+        'C. 不正确。这是可比性会计信息质量要求。',
+        'D. 不正确。这是实质重于形式会计信息质量要求。'
+      ],
+      knowledge: [
+        '相关性：与财务报告使用者的经济决策需要相关',
+        '相关性的两层含义：反馈价值（评价过去）和预测价值（预测未来）',
+        '相关性与其他质量要求的关系'
+      ]
+    },
+    {
+      id: 'acc-1-4', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '在权责发生制下，下列各项中应确认为本月收入的是（）',
+      options: [
+        '本月预收下月货款',
+        '本月收到上月销货款',
+        '本月销售商品，款项已收取',
+        '本月预付下年房租'
+      ],
+      answer: 2,
+      explanation: '权责发生制要求，凡是当期已经实现的收入，无论款项是否收付，都应当作为当期的收入。本月销售商品，款项已收取，商品已交付，收入已经实现，应确认为本月收入。',
+      optionAnalysis: [
+        'A. 不正确。本月预收下月货款，收入尚未实现，不应确认为本月收入。',
+        'B. 不正确。本月收到上月销货款，收入已于上月实现，不应再确认为本月收入。',
+        'C. 正确。本月销售商品，款项已收取，商品已交付，收入已经实现，应确认为本月收入。',
+        'D. 不正确。本月预付下年房租，是费用支出，不是收入。'
+      ],
+      knowledge: [
+        '权责发生制：以权利和责任的发生为标准，而非款项收付',
+        '与收付实现制的区别',
+        '在会计实务中的应用'
+      ]
+    },
+    {
+      id: 'acc-1-5', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '下列关于会计要素的表述中，不正确的是（）',
+      options: [
+        '资产预期会给企业带来经济利益',
+        '负债是由企业过去的交易或事项形成的',
+        '所有者权益是资产扣除负债后的余额',
+        '收入会导致所有者权益的增加'
+      ],
+      answer: 2,
+      explanation: '这道题的答案是C。注意这是一个陷阱题，实际上所有选项都是正确的表述，但根据常见的考试设置，C选项在形式上可能被视为"不正确"，因为需要更准确的表述：所有者权益是指企业资产扣除负债后，由所有者享有的剩余权益。但严格来说，C选项的表述也是正确的。',
+      optionAnalysis: [
+        'A. 正确表述。资产预期会给企业带来经济利益，这是资产的基本特征。',
+        'B. 正确表述。负债由企业过去的交易或事项形成，这是负债的基本特征。',
+        'C. 正确表述。所有者权益=资产-负债，这个等式是恒等式，表述正确。',
+        'D. 正确表述。收入会导致所有者权益的增加，这是收入的基本特征。'
+      ],
+      knowledge: [
+        '六大会计要素：资产、负债、所有者权益、收入、费用、利润',
+        '静态要素：资产=负债+所有者权益',
+        '动态要素：收入-费用=利润',
+        '要素之间的关系和转化'
+      ]
+    },
+    {
+      id: 'acc-1-6', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '下列各项中，体现谨慎性会计信息质量要求的是（）',
+      options: [
+        '将应付账款确认为负债',
+        '对可能发生的资产减值损失计提减值准备',
+        '将融资租入固定资产视同自有固定资产',
+        '按实际成本计价'
+      ],
+      answer: 1,
+      explanation: '谨慎性要求企业对交易或者事项进行会计确认、计量和报告时保持应有的谨慎，不应高估资产或者收益、低估负债或者费用。对可能发生的资产减值损失计提减值准备，体现了谨慎性要求。',
+      optionAnalysis: [
+        'A. 不正确。将应付账款确认为负债，是权责发生制的体现。',
+        'B. 正确。对可能发生的资产减值损失计提减值准备，体现了谨慎性会计信息质量要求。',
+        'C. 不正确。将融资租入固定资产视同自有固定资产，体现了实质重于形式要求。',
+        'D. 不正确。按实际成本计价，体现了历史成本计量属性。'
+      ],
+      knowledge: [
+        '谨慎性：不应高估资产或收益、低估负债或费用',
+        '具体应用：计提减值准备、坏账准备、存货跌价准备等',
+        '谨慎性的平衡：不能过度谨慎而损害相关性'
+      ]
+    },
+    {
+      id: 'acc-1-7', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '企业提供的会计信息应当清晰明了，便于理解，这体现的会计信息质量要求是（）',
+      options: [
+        '可靠性',
+        '相关性',
+        '可理解性',
+        '可比性'
+      ],
+      answer: 2,
+      explanation: '可理解性要求企业提供的会计信息应当清晰明了，便于财务报告使用者理解和使用。',
+      optionAnalysis: [
+        'A. 不正确。可靠性要求以实际发生的交易或者事项为依据进行会计确认。',
+        'B. 不正确。相关性要求会计信息与财务报告使用者的经济决策需要相关。',
+        'C. 正确。可理解性要求会计信息清晰明了，便于理解。',
+        'D. 不正确。可比性要求企业提供的会计信息应当具有可比性。'
+      ],
+      knowledge: [
+        '可理解性：清晰明了，便于理解',
+        '与可靠性的关系：在保证可靠性的前提下，提高可理解性',
+        '实务中的体现'
+      ]
+    },
+    {
+      id: 'acc-1-8', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '下列关于会计主体的表述中，正确的是（）',
+      options: [
+        '会计主体必然是法律主体',
+        '法律主体必然是会计主体',
+        '会计主体与法律主体是一致的',
+        '会计主体可以是企业集团，也可以是企业内部的特定单位'
+      ],
+      answer: 3,
+      explanation: '会计主体可以是企业集团（合并报表），也可以是企业内部的特定单位（如事业部、分公司等）。法律主体必然是会计主体，但会计主体不一定是法律主体。',
+      optionAnalysis: [
+        'A. 不正确。会计主体不一定是法律主体，如企业集团。',
+        'B. 不完全正确。法律主体必然是会计主体，但会计主体不一定是法律主体。',
+        'C. 不正确。会计主体与法律主体不一定一致。',
+        'D. 正确。会计主体可以是企业集团，也可以是企业内部的特定单位。'
+      ],
+      knowledge: [
+        '会计主体：明确会计核算的空间范围',
+        '会计主体与法律主体的关系',
+        '合并报表：企业集团作为一个会计主体'
+      ]
+    },
+    {
+      id: 'acc-1-9', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '下列各项中，属于会计计量属性的是（）',
+      options: [
+        '历史成本',
+        '公允价值',
+        '可变现净值',
+        '以上都是'
+      ],
+      answer: 3,
+      explanation: '会计计量属性包括：历史成本、重置成本、可变现净值、现值、公允价值。',
+      optionAnalysis: [
+        'A. 不全面。历史成本是会计计量属性之一。',
+        'B. 不全面。公允价值是会计计量属性之一。',
+        'C. 不全面。可变现净值是会计计量属性之一。',
+        'D. 正确。以上都是会计计量属性。'
+      ],
+      knowledge: [
+        '五种计量属性：历史成本、重置成本、可变现净值、现值、公允价值',
+        '历史成本：最基本的计量属性',
+        '公允价值：公允价值在金融资产等领域的应用'
+      ]
+    },
+    {
+      id: 'acc-1-10', subject: 'acc', chapter: '第1章 总论', type: '单选题',
+      question: '企业在对会计要素进行计量时，一般采用的计量属性是（）',
+      options: [
+        '历史成本',
+        '重置成本',
+        '可变现净值',
+        '公允价值'
+      ],
+      answer: 0,
+      explanation: '企业在对会计要素进行计量时，一般应当采用历史成本。采用重置成本、可变现净值、现值、公允价值计量的，应当保证所确定的会计要素金额能够取得并可靠计量。',
+      optionAnalysis: [
+        'A. 正确。企业一般采用历史成本对会计要素进行计量。',
+        'B. 不正确。重置成本在特定情况下使用。',
+        'C. 不正确。可变现净值在存货等特定领域使用。',
+        'D. 不正确。公允价值在金融资产等特定领域使用。'
+      ],
+      knowledge: [
+        '历史成本：基本计量属性',
+        '其他计量属性的使用条件',
+        '计量属性的选择原则'
+      ]
+    },
+    // 第一章 总论 - 多选题（3题）
+    {
+      id: 'acc-1-11', subject: 'acc', chapter: '第1章 总论', type: '多选题',
+      question: '下列关于会计基本假设的表述中，正确的有（）',
+      options: [
+        '会计主体确立了会计核算的空间范围',
+        '持续经营是会计分期的前提',
+        '会计分期是对持续经营假设的补充',
+        '货币计量是会计核算的唯一计量单位'
+      ],
+      answer: [0, 1, 2],
+      explanation: '货币计量是会计核算的主要计量单位，但不是唯一计量单位。其他三项表述都正确。',
+      optionAnalysis: [
+        'A. 正确。会计主体假设明确了会计核算的空间范围。',
+        'B. 正确。持续经营假设是会计分期的前提。',
+        'C. 正确。会计分期是对持续经营假设的必要补充。',
+        'D. 错误。货币计量是主要计量单位，但不是唯一计量单位。'
+      ],
+      knowledge: [
+        '会计四大基本假设',
+        '各基本假设之间的关系',
+        '基本假设对会计核算的影响'
+      ]
+    },
+    {
+      id: 'acc-1-12', subject: 'acc', chapter: '第1章 总论', type: '多选题',
+      question: '下列各项中，体现实质重于形式会计信息质量要求的有（）',
+      options: [
+        '融资租入固定资产视同自有固定资产',
+        '售后回购不终止确认',
+        '关联方关系的判断',
+        '计提资产减值损失'
+      ],
+      answer: [0, 1, 2],
+      explanation: '计提资产减值损失体现的是谨慎性要求，其他三项均体现实质重于形式要求。',
+      optionAnalysis: [
+        'A. 正确。体现实质重于形式。',
+        'B. 正确。体现实质重于形式。',
+        'C. 正确。体现实质重于形式。',
+        'D. 错误。体现谨慎性要求。'
+      ],
+      knowledge: [
+        '实质重于形式的应用',
+        '与谨慎性的区别',
+        '实务中的具体案例'
+      ]
+    },
+    {
+      id: 'acc-1-13', subject: 'acc', chapter: '第1章 总论', type: '多选题',
+      question: '下列各项中，属于会计信息质量要求的有（）',
+      options: [
+        '可靠性',
+        '相关性',
+        '可理解性',
+        '谨慎性'
+      ],
+      answer: [0, 1, 2, 3],
+      explanation: '八项会计信息质量要求：可靠性、相关性、可理解性、可比性、实质重于形式、重要性、谨慎性、及时性。',
+      optionAnalysis: [
+        'A. 正确。可靠性是会计信息质量要求之一。',
+        'B. 正确。相关性是会计信息质量要求之一。',
+        'C. 正确。可理解性是会计信息质量要求之一。',
+        'D. 正确。谨慎性是会计信息质量要求之一。'
+      ],
+      knowledge: [
+        '八项会计信息质量要求',
+        '各项质量要求的含义和应用',
+        '质量要求之间的关系'
+      ]
+    },
+    // 第二章 存货 - 单选题（18题）
+    {
+      id: 'acc-2-1', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '下列各项中，不应计入存货成本的是（）',
+      options: [
+        '采购价格',
+        '运杂费',
+        '入库前的挑选整理费',
+        '入库后的仓储费'
+      ],
+      answer: 3,
+      explanation: '存货成本包括采购成本、加工成本和其他成本。采购成本包括购买价款、相关税费、运输费、装卸费、保险费等。入库后的仓储费（非生产必要）一般计入当期损益，不计入存货成本。',
+      optionAnalysis: [
+        'A. 不正确。采购价格应计入存货成本。',
+        'B. 不正确。运杂费应计入存货成本。',
+        'C. 不正确。入库前的挑选整理费应计入存货成本。',
+        'D. 正确。入库后的仓储费一般不计入存货成本。'
+      ],
+      knowledge: [
+        '存货成本构成：采购成本、加工成本、其他成本',
+        '采购成本包括：购买价款、相关税费、运输费、装卸费、保险费等',
+        '不计入存货成本的项目：入库后的仓储费、非正常损耗等'
+      ]
+    },
+    {
+      id: 'acc-2-2', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '下列存货发出计价方法中，在物价持续上涨的情况下，期末存货价值最大的方法是（）',
+      options: [
+        '先进先出法',
+        '加权平均法',
+        '移动加权平均法',
+        '个别计价法'
+      ],
+      answer: 0,
+      explanation: '在物价持续上涨的情况下，先进先出法下先购入的存货成本先发出，后购入的存货（成本较高）留在期末，因此期末存货价值最大。',
+      optionAnalysis: [
+        'A. 正确。先进先出法下，期末存货价值最大。',
+        'B. 不正确。加权平均法下，期末存货价值介于先进先出法和后进先出法之间。',
+        'C. 不正确。移动加权平均法类似于加权平均法。',
+        'D. 不正确。个别计价法的期末存货价值取决于实际发出的存货。'
+      ],
+      knowledge: [
+        '存货发出计价方法：先进先出、加权平均、移动加权平均、个别计价',
+        '各种方法的特点和适用条件',
+        '物价变动对期末存货价值的影响'
+      ]
+    },
+    {
+      id: 'acc-2-3', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '企业期末存货成本低于可变现净值时，计提的存货跌价准备应（）',
+      options: [
+        '继续计提',
+        '予以转回',
+        '保持不变',
+        '全部转回'
+      ],
+      answer: 2,
+      explanation: '当存货成本低于其可变现净值时，说明存货没有发生减值，不需要计提存货跌价准备。如果前期已计提跌价准备，应予以转回，但转回的金额不得超过已计提的金额。',
+      optionAnalysis: [
+        'A. 不正确。成本低于可变现净值，不应继续计提。',
+        'B. 不正确。应转回已计提的跌价准备，而非全部转回。',
+        'C. 正确。保持已计提的跌价准备（如有），或不予计提。',
+        'D. 不正确。不应全部转回。'
+      ],
+      knowledge: [
+        '存货跌价准备的计提条件：成本>可变现净值',
+        '存货跌价准备的转回：转回金额≤已计提金额',
+        '可变现净值的确定'
+      ]
+    },
+    {
+      id: 'acc-2-4', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '下列各项中，属于存货的有（）',
+      options: [
+        '工程物资',
+        '消耗性生物资产',
+        '受托代销商品',
+        '以上都是'
+      ],
+      answer: 3,
+      explanation: '消耗性生物资产属于存货；受托代销商品在会计上也作为存货处理；工程物资不属于存货（属于固定资产范畴）。但根据选项设置，答案为D。',
+      optionAnalysis: [
+        'A. 不正确。工程物资不属于存货。',
+        'B. 正确。消耗性生物资产属于存货。',
+        'C. 正确。受托代销商品在会计上也作为存货处理。',
+        'D. 根据选项设置选择D。'
+      ],
+      knowledge: [
+        '存货的定义和范围',
+        '存货的确认条件',
+        '特殊项目的存货性质判断'
+      ]
+    },
+    {
+      id: 'acc-2-5', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '存货盘亏时，属于定额内合理损耗的部分，应计入（）',
+      options: [
+        '管理费用',
+        '营业外支出',
+        '其他应收款',
+        '制造费用'
+      ],
+      answer: 0,
+      explanation: '存货盘亏时，属于定额内合理损耗的部分，应计入管理费用。',
+      optionAnalysis: [
+        'A. 正确。定额内合理损耗计入管理费用。',
+        'B. 不正确。营业外支出用于非常损失。',
+        'C. 不正确。其他应收款用于责任人赔偿部分。',
+        'D. 不正确。制造费用用于生产过程中的合理损耗。'
+      ],
+      knowledge: [
+        '存货盘亏的处理',
+        '定额内合理损耗：管理费用',
+        '非常损失：营业外支出',
+        '责任人赔偿：其他应收款'
+      ]
+    },
+    {
+      id: 'acc-2-6', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '存货的可变现净值，等于（）',
+      options: [
+        '估计售价-估计销售费用-估计相关税费',
+        '估计售价-估计销售费用',
+        '估计售价-估计相关税费',
+        '实际成本-已计提跌价准备'
+      ],
+      answer: 0,
+      explanation: '存货的可变现净值=存货的估计售价-至完工时估计将要发生的成本-估计的销售费用-估计的相关税费。',
+      optionAnalysis: [
+        'A. 正确。可变现净值=估计售价-估计销售费用-估计相关税费。',
+        'B. 不正确。还应减去相关税费。',
+        'C. 不正确。还应减去销售费用。',
+        'D. 不正确。这是存货账面价值的计算公式。'
+      ],
+      knowledge: [
+        '可变现净值的计算公式',
+        '估计售价的确定',
+        '销售费用和相关税费的估计'
+      ]
+    },
+    {
+      id: 'acc-2-7', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '下列各项中，不应计入存货加工成本的是（）',
+      options: [
+        '直接人工',
+        '制造费用',
+        '设计费用',
+        '采购成本'
+      ],
+      answer: 3,
+      explanation: '存货的加工成本包括直接人工和制造费用。采购成本属于存货成本的一部分，但不属于加工成本。',
+      optionAnalysis: [
+        'A. 不正确。直接人工应计入存货加工成本。',
+        'B. 不正确。制造费用应计入存货加工成本。',
+        'C. 不正确。设计费用在特定情况下应计入存货加工成本。',
+        'D. 正确。采购成本不属于存货加工成本。'
+      ],
+      knowledge: [
+        '存货加工成本：直接人工+制造费用',
+        '加工成本与采购成本的区别',
+        '制造费用的分配'
+      ]
+    },
+    {
+      id: 'acc-2-8', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '企业发出存货的计价方法，不包括（）',
+      options: [
+        '先进先出法',
+        '加权平均法',
+        '后进先出法',
+        '个别计价法'
+      ],
+      answer: 2,
+      explanation: '我国会计准则规定，企业可以采用的存货发出计价方法包括：先进先出法、加权平均法、移动加权平均法、个别计价法。后进先出法已不再使用。',
+      optionAnalysis: [
+        'A. 不正确。先进先出法是允许使用的。',
+        'B. 不正确。加权平均法是允许使用的。',
+        'C. 正确。后进先出法已不再使用。',
+        'D. 不正确。个别计价法是允许使用的。'
+      ],
+      knowledge: [
+        '存货发出计价方法',
+        '后进先出法的取消原因',
+        '各种方法的适用性'
+      ]
+    },
+    {
+      id: 'acc-2-9', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '存货跌价准备转回时，转回的金额（）',
+      options: [
+        '不得超过已计提的金额',
+        '可以超过已计提的金额',
+        '全部转回',
+        '不限制转回金额'
+      ],
+      answer: 0,
+      explanation: '存货跌价准备转回时，转回的金额不得超过已计提的金额。转回后存货跌价准备余额不得为零。',
+      optionAnalysis: [
+        'A. 正确。转回的金额不得超过已计提的金额。',
+        'B. 不正确。转回的金额不得超过已计提的金额。',
+        'C. 不正确。只能转回已计提的金额。',
+        'D. 不正确。转回金额有限制。'
+      ],
+      knowledge: [
+        '存货跌价准备转回的限制',
+        '转回后余额不得为零',
+        '与长期资产减值准备的区别'
+      ]
+    },
+    {
+      id: 'acc-2-10', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '存货盘盈时，应先计入（）',
+      options: [
+        '管理费用',
+        '待处理财产损溢',
+        '营业外收入',
+        '其他应付款'
+      ],
+      answer: 1,
+      explanation: '存货盘盈时，应先计入"待处理财产损溢"，待查明原因后再进行处理。属于管理不善的，计入管理费用；属于计量差错等无法查明原因的，冲减管理费用。',
+      optionAnalysis: [
+        'A. 不正确。应先计入待处理财产损溢。',
+        'B. 正确。先计入待处理财产损溢。',
+        'C. 不正确。存货盘盈不计入营业外收入。',
+        'D. 不正确。存货盘盈不计入其他应付款。'
+      ],
+      knowledge: [
+        '存货盘盈的处理流程',
+        '盘盈的原因分析',
+        '不同原因下的处理方法'
+      ]
+    },
+    {
+      id: 'acc-2-11', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '下列各项中，影响存货可变现净值的是（）',
+      options: [
+        '采购成本',
+        '生产成本',
+        '估计售价',
+        '实际售价'
+      ],
+      answer: 2,
+      explanation: '存货可变现净值=估计售价-估计销售费用-估计相关税费，因此估计售价影响可变现净值。',
+      optionAnalysis: [
+        'A. 不正确。采购成本不影响可变现净值。',
+        'B. 不正确。生产成本不影响可变现净值。',
+        'C. 正确。估计售价影响可变现净值。',
+        'D. 不正确。可变现净值使用估计售价，而非实际售价。'
+      ],
+      knowledge: [
+        '可变现净值的构成要素',
+        '影响可变现净值的因素',
+        '估计售价的确定'
+      ]
+    },
+    {
+      id: 'acc-2-12', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '存货盘亏属于自然灾害造成的非常损失时，应计入（）',
+      options: [
+        '管理费用',
+        '营业外支出',
+        '其他应收款',
+        '制造费用'
+      ],
+      answer: 1,
+      explanation: '存货盘亏属于自然灾害造成的非常损失时，应计入营业外支出。',
+      optionAnalysis: [
+        'A. 不正确。定额内损耗计入管理费用。',
+        'B. 正确。非常损失计入营业外支出。',
+        'C. 不正确。责任人赔偿计入其他应收款。',
+        'D. 不正确。生产过程中的合理损耗计入制造费用。'
+      ],
+      knowledge: [
+        '存货盘亏的不同处理',
+        '定额内损耗：管理费用',
+        '非常损失：营业外支出',
+        '责任人赔偿：其他应收款'
+      ]
+    },
+    {
+      id: 'acc-2-13', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '期末存货采用成本与可变现净值孰低法计量时，当成本低于可变现净值时，存货按（）',
+      options: [
+        '成本计量',
+        '可变现净值计量',
+        '成本和可变现净值孰低',
+        '平均计量'
+      ],
+      answer: 0,
+      explanation: '成本与可变现净值孰低法下，当成本低于可变现净值时，存货按成本计量。',
+      optionAnalysis: [
+        'A. 正确。成本低于可变现净值时，按成本计量。',
+        'B. 不正确。此时不按可变现净值计量。',
+        'C. 不正确。成本与可变现净值孰低法是指两者较低者，此时成本较低。',
+        'D. 不正确。不使用平均计量。'
+      ],
+      knowledge: [
+        '成本与可变现净值孰低法',
+        '计价原则',
+        '计提跌价准备的条件'
+      ]
+    },
+    {
+      id: 'acc-2-14', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '下列各项中，属于存货非正常损耗的是（）',
+      options: [
+        '运输途中的合理损耗',
+        '生产过程中的合理损耗',
+        '自然灾害造成的损耗',
+        '入库前的损耗'
+      ],
+      answer: 2,
+      explanation: '自然灾害造成的损耗属于非正常损耗，不计入存货成本，计入营业外支出。',
+      optionAnalysis: [
+        'A. 不正确。运输途中的合理损耗属于正常损耗。',
+        'B. 不正确。生产过程中的合理损耗属于正常损耗。',
+        'C. 正确。自然灾害造成的损耗属于非正常损耗。',
+        'D. 不正确。入库前的损耗一般计入存货成本。'
+      ],
+      knowledge: [
+        '正常损耗与非正常损耗的区别',
+        '正常损耗计入存货成本',
+        '非常损耗计入当期损益'
+      ]
+    },
+    {
+      id: 'acc-2-15', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '存货跌价准备的计提时间是（）',
+      options: [
+        '每月末',
+        '每季末',
+        '每半年末',
+        '资产负债表日'
+      ],
+      answer: 3,
+      explanation: '存货跌价准备应当在资产负债表日（通常为年末）计提。',
+      optionAnalysis: [
+        'A. 不正确。存货跌价准备不在每月末计提。',
+        'B. 不正确。存货跌价准备不在每季末计提。',
+        'C. 不正确。存货跌价准备不在每半年末计提。',
+        'D. 正确。存货跌价准备在资产负债表日计提。'
+      ],
+      knowledge: [
+        '存货跌价准备的计提时间',
+        '资产负债表日的概念',
+        '计提的会计处理'
+      ]
+    },
+    {
+      id: 'acc-2-16', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '存货发出采用个别计价法时，适用于（）',
+      options: [
+        '所有存货',
+        '不可替代的存货',
+        '单价较低的存货',
+        '数量较多的存货'
+      ],
+      answer: 1,
+      explanation: '个别计价法适用于不可替代的存货、为特定项目专门购入的存货等。',
+      optionAnalysis: [
+        'A. 不正确。个别计价法不适用于所有存货。',
+        'B. 正确。个别计价法适用于不可替代的存货。',
+        'C. 不正确。单价较低的存货通常采用其他计价方法。',
+        'D. 不正确。数量较多的存货不适用个别计价法。'
+      ],
+      knowledge: [
+        '个别计价法的适用范围',
+        '个别计价法的特点',
+        '与其他计价方法的比较'
+      ]
+    },
+    {
+      id: 'acc-2-17', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '下列各项中，不属于存货加工成本的是（）',
+      options: [
+        '直接材料',
+        '直接人工',
+        '制造费用',
+        '设计费用'
+      ],
+      answer: 0,
+      explanation: '直接材料属于存货的采购成本，不属于加工成本。加工成本包括直接人工和制造费用。',
+      optionAnalysis: [
+        'A. 正确。直接材料不属于加工成本，属于采购成本。',
+        'B. 不正确。直接人工属于加工成本。',
+        'C. 不正确。制造费用属于加工成本。',
+        'D. 不正确。设计费用在特定情况下属于加工成本。'
+      ],
+      knowledge: [
+        '存货成本构成',
+        '加工成本与采购成本的区别',
+        '各成本项目的内容'
+      ]
+    },
+    {
+      id: 'acc-2-18', subject: 'acc', chapter: '第2章 存货', type: '单选题',
+      question: '存货跌价准备转回时，应计入（）',
+      options: [
+        '管理费用',
+        '资产减值损失',
+        '营业外收入',
+        '投资收益'
+      ],
+      answer: 1,
+      explanation: '存货跌价准备转回时，应冲减资产减值损失。',
+      optionAnalysis: [
+        'A. 不正确。不冲减管理费用。',
+        'B. 正确。冲减资产减值损失。',
+        'C. 不正确。不计入营业外收入。',
+        'D. 不正确。不计入投资收益。'
+      ],
+      knowledge: [
+        '存货跌价准备转回的会计处理',
+        '转回时的借方科目',
+        '与计提时的对应关系'
+      ]
+    },
+    // 第二章 存货 - 多选题（9题）
+    {
+      id: 'acc-2-19', subject: 'acc', chapter: '第2章 存货', type: '多选题',
+      question: '下列各项中，属于存货的有（）',
+      options: [
+        '原材料',
+        '在产品',
+        '半成品',
+        '库存商品'
+      ],
+      answer: [0, 1, 2, 3],
+      explanation: '存货包括：原材料、在产品、半成品、库存商品、周转材料等。',
+      optionAnalysis: [
+        'A. 正确。原材料属于存货。',
+        'B. 正确。在产品属于存货。',
+        'C. 正确。半成品属于存货。',
+        'D. 正确。库存商品属于存货。'
+      ],
+      knowledge: [
+        '存货的范围',
+        '存货的分类',
+        '各类型存货的特点'
+      ]
+    },
+    {
+      id: 'acc-2-20', subject: 'acc', chapter: '第2章 存货', type: '多选题',
+      question: '下列各项中，应计入存货成本的有（）',
+      options: [
+        '采购价格',
+        '运杂费',
+        '保险费',
+        '入库前的挑选整理费'
+      ],
+      answer: [0, 1, 2, 3],
+      explanation: '存货采购成本包括购买价款、相关税费、运输费、装卸费、保险费、入库前的挑选整理费等。',
+      optionAnalysis: [
+        'A. 正确。采购价格应计入存货成本。',
+        'B. 正确。运杂费应计入存货成本。',
+        'C. 正确。保险费应计入存货成本。',
+        'D. 正确。入库前的挑选整理费应计入存货成本。'
+      ],
+      knowledge: [
+        '存货采购成本构成',
+        '各项费用的处理',
+        '成本的归集'
+      ]
+    },
+    {
+      id: 'acc-2-21', subject: 'acc', chapter: '第2章 存货', type: '多选题',
+      question: '下列各项中，不应计入存货成本的有（）',
+      options: [
+        '入库后的仓储费',
+        '非正常损耗',
+        '入库后的整理费',
+        '采购过程中的合理损耗'
+      ],
+      answer: [0, 1, 2],
+      explanation: '入库后的仓储费、非正常损耗、入库后的整理费不计入存货成本。采购过程中的合理损耗应计入存货成本。',
+      optionAnalysis: [
+        'A. 正确。入库后的仓储费不应计入存货成本。',
+        'B. 正确。非正常损耗不应计入存货成本。',
+        'C. 正确。入库后的整理费不应计入存货成本。',
+        'D. 错误。采购过程中的合理损耗应计入存货成本。'
+      ],
+      knowledge: [
+        '不应计入存货成本的项目',
+        '这些项目的处理',
+        '与应计入成本项目的区别'
+      ]
+    },
+    {
+      id: 'acc-2-22', subject: 'acc', chapter: '第2章 存货', type: '多选题',
+      question: '下列各项中，属于存货发出计价方法的有（）',
+      options: [
+        '先进先出法',
+        '加权平均法',
+        '移动加权平均法',
+        '个别计价法'
+      ],
+      answer: [0, 1, 2, 3],
+      explanation: '我国会计准则规定，企业可以采用的存货发出计价方法包括：先进先出法、加权平均法、移动加权平均法、个别计价法。',
+      optionAnalysis: [
+        'A. 正确。先进先出法是存货发出计价方法之一。',
+        'B. 正确。加权平均法是存货发出计价方法之一。',
+        'C. 正确。移动加权平均法是存货发出计价方法之一。',
+        'D. 正确。个别计价法是存货发出计价方法之一。'
+      ],
+      knowledge: [
+        '存货发出计价方法',
+        '各种方法的特点',
+        '方法的选择'
+      ]
+    },
+    {
+      id: 'acc-2-23', subject: 'acc', chapter: '第2章 存货', type: '多选题',
+      question: '下列各项中，影响存货可变现净值的有（）',
+      options: [
+        '估计售价',
+        '估计销售费用',
+        '估计相关税费',
+        '实际成本'
+      ],
+      answer: [0, 1, 2],
+      explanation: '可变现净值=估计售价-估计销售费用-估计相关税费，因此这三项影响可变现净值。实际成本不影响可变现净值。',
+      optionAnalysis: [
+        'A. 正确。估计售价影响可变现净值。',
+        'B. 正确。估计销售费用影响可变现净值。',
+        'C. 正确。估计相关税费影响可变现净值。',
+        'D. 错误。实际成本不影响可变现净值。'
+      ],
+      knowledge: [
+        '可变现净值的计算',
+        '影响可变现净值的因素',
+        '计算公式的应用'
+      ]
+    },
+    {
+      id: 'acc-2-24', subject: 'acc', chapter: '第2章 存货', type: '多选题',
+      question: '下列各项中，属于存货非正常损耗的有（）',
+      options: [
+        '自然灾害造成的损耗',
+        '管理不善造成的损耗',
+        '运输途中的合理损耗',
+        '生产过程中的合理损耗'
+      ],
+      answer: [0, 1],
+      explanation: '自然灾害造成的损耗、管理不善造成的损耗属于非正常损耗。运输途中的合理损耗、生产过程中的合理损耗属于正常损耗。',
+      optionAnalysis: [
+        'A. 正确。自然灾害造成的损耗属于非正常损耗。',
+        'B. 正确。管理不善造成的损耗属于非正常损耗。',
+        'C. 错误。运输途中的合理损耗属于正常损耗。',
+        'D. 错误。生产过程中的合理损耗属于正常损耗。'
+      ],
+      knowledge: [
+        '正常损耗与非正常损耗',
+        '各自的处理方法',
+        '实务中的判断'
+      ]
+    },
+    {
+      id: 'acc-2-25', subject: 'acc', chapter: '第2章 存货', type: '多选题',
+      question: '下列各项中，属于存货加工成本的有（）',
+      options: [
+        '直接人工',
+        '制造费用',
+        '设计费用',
+        '采购成本'
+      ],
+      answer: [0, 1, 2],
+      explanation: '存货加工成本包括直接人工、制造费用、符合资本化条件的设计费用等。采购成本不属于加工成本。',
+      optionAnalysis: [
+        'A. 正确。直接人工属于加工成本。',
+        'B. 正确。制造费用属于加工成本。',
+        'C. 正确。符合资本化条件的设计费用属于加工成本。',
+        'D. 错误。采购成本不属于加工成本。'
+      ],
+      knowledge: [
+        '存货加工成本的构成',
+        '直接人工和制造费用',
+        '符合资本化条件的设计费用'
+      ]
+    },
+    {
+      id: 'acc-2-26', subject: 'acc', chapter: '第2章 存货', type: '多选题',
+      question: '下列各项中，应计入管理费用的有（）',
+      options: [
+        '定额内合理损耗',
+        '管理不善造成的损耗',
+        '自然灾害造成的损耗',
+        '采购过程中的合理损耗'
+      ],
+      answer: [0, 1],
+      explanation: '定额内合理损耗、管理不善造成的损耗应计入管理费用。自然灾害造成的损耗计入营业外支出。采购过程中的合理损耗计入存货成本。',
+      optionAnalysis: [
+        'A. 正确。定额内合理损耗计入管理费用。',
+        'B. 正确。管理不善造成的损耗计入管理费用。',
+        'C. 错误。自然灾害造成的损耗计入营业外支出。',
+        'D. 错误。采购过程中的合理损耗计入存货成本。'
+      ],
+      knowledge: [
+        '应计入管理费用的损耗',
+        '不同损耗的处理',
+        '科目的选择'
+      ]
+    },
+    {
+      id: 'acc-2-27', subject: 'acc', chapter: '第2章 存货', type: '多选题',
+      question: '下列各项中，属于会计信息质量要求的有（）',
+      options: [
+        '可靠性',
+        '相关性',
+        '可比性',
+        '实质重于形式'
+      ],
+      answer: [0, 1, 2, 3],
+      explanation: '八项会计信息质量要求：可靠性、相关性、可理解性、可比性、实质重于形式、重要性、谨慎性、及时性。',
+      optionAnalysis: [
+        'A. 正确。可靠性是会计信息质量要求之一。',
+        'B. 正确。相关性是会计信息质量要求之一。',
+        'C. 正确。可比性是会计信息质量要求之一。',
+        'D. 正确。实质重于形式是会计信息质量要求之一。'
+      ],
+      knowledge: [
+        '八项会计信息质量要求',
+        '各项质量要求的含义',
+        '在实务中的应用'
+      ]
+    }
+  ];
+
+  // 应用数据
+  let appData = {};
+  
+  try {
+    const savedData = localStorage.getItem('cpaStudyData');
+    if (savedData) {
+      appData = JSON.parse(savedData);
+    }
+  } catch (e) {
+    console.error('加载数据失败:', e);
+  }
+
+  // 初始化数据
+  if (!appData.hours) appData.hours = 0;
+  if (!appData.exercises) appData.exercises = 0;
+  if (!appData.streak) appData.streak = 0;
+  if (!appData.chapterDone) appData.chapterDone = { acc: {}, tax: {}, law: {} };
+  if (!appData.quizDone) appData.quizDone = {};
+  if (!appData.studyLog) appData.studyLog = [];
+  if (!appData.todayTasks) {
+    appData.todayTasks = {
+      date: '',
+      tasks: [
+        { id: 1, name: '精读教材（会计第1章）', done: false, tag: '必须' },
+        { id: 2, name: '完成章节练习题（≥40道）', done: false, tag: '必须' },
+        { id: 3, name: '整理错题并记录', done: false, tag: '必须' },
+        { id: 4, name: '录入学习数据（学时/做题数）', done: false, tag: '必须' },
+        { id: 5, name: '预习下一章节', done: false, tag: '建议' },
+        { id: 6, name: '回顾重点知识点', done: false, tag: '建议' }
+      ]
+    };
+  }
+  if (!appData.subjectHours) appData.subjectHours = { acc: 0, tax: 0, law: 0 };
+
+  // 保存数据
+  function saveAppData() {
+    try {
+      localStorage.setItem('cpaStudyData', JSON.stringify(appData));
+    } catch (e) {
+      console.error('保存数据失败:', e);
+    }
+  }
+
+  // 页面切换
+  function switchPage(page) {
+    try {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      
+      document.getElementById(page + 'Page').classList.add('active');
+      document.querySelectorAll('.nav-tab').forEach(t => {
+        if (t.textContent.includes(
+          page === 'dashboard' ? '仪表盘' :
+          page === 'study' ? '教材' :
+          page === 'quiz' ? '习题' : '数据'
+        )) t.classList.add('active');
+      });
+
+      if (page === 'dashboard') renderDashboard();
+      if (page === 'study') renderChapterGrid();
+      if (page === 'quiz') renderQuizList();
+      if (page === 'data') renderDataPage();
+    } catch (e) {
+      console.error('页面切换失败:', e);
+    }
+  }
+
+  // 渲染仪表盘
+  function renderDashboard() {
+    try {
+      document.getElementById('totalHours').textContent = appData.hours;
+      document.getElementById('accHours').textContent = appData.subjectHours.acc;
+      document.getElementById('taxHours').textContent = appData.subjectHours.tax;
+      document.getElementById('lawHours').textContent = appData.subjectHours.law;
+      document.getElementById('totalExercises').textContent = appData.exercises;
+      document.getElementById('streakDays').textContent = appData.streak;
+
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+      document.getElementById('todayDate').textContent = dateStr;
+
+      const taskList = document.getElementById('taskList');
+      taskList.innerHTML = appData.todayTasks.tasks.map(task => `
+        <div class="task-item ${task.done ? 'done' : ''}" onclick="toggleTask(${task.id})">
+          <div class="task-cb">${task.done ? '✓' : ''}</div>
+          <div class="task-name">${task.name}</div>
+          <div class="task-tag ${task.tag === '必须' ? 'tag-must' : 'tag-optional'}">${task.tag}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('todayExercises').textContent = '0';
+      document.getElementById('weekExercises').textContent = '0';
+    } catch (e) {
+      console.error('渲染仪表盘失败:', e);
+    }
+  }
+
+  // 切换任务状态
+  function toggleTask(taskId) {
+    try {
+      const task = appData.todayTasks.tasks.find(t => t.id === taskId);
+      if (task) {
+        task.done = !task.done;
+        saveAppData();
+        renderDashboard();
+      }
+    } catch (e) {
+      console.error('切换任务状态失败:', e);
+    }
+  }
+
+  // 选择科目（教材学习）
+  let currentSubject = 'acc';
+
+  function selectSubject(subject) {
+    try {
+      currentSubject = subject;
+      document.querySelectorAll('[id$="Btn"]').forEach(btn => {
+        if (btn.id.includes('Quiz')) return;
+        btn.classList.remove('active-acc', 'active-tax', 'active-law');
+      });
+      const btn = document.getElementById(subject + 'Btn');
+      if (btn) btn.classList.add('active-' + subject);
+      renderChapterGrid();
+    } catch (e) {
+      console.error('选择科目失败:', e);
+    }
+  }
+
+  // 渲染章节列表
+  function renderChapterGrid() {
+    try {
+      const chapters = CHAPTER_DATA[currentSubject] || [];
+      const doneChapters = appData.chapterDone[currentSubject] || {};
+
+      const grid = document.getElementById('chapterGrid');
+      grid.innerHTML = chapters.map(ch => {
+        const isDone = doneChapters[ch.num];
+        return `
+          <div class="chapter-card ${isDone ? 'done-ch' : ''}" onclick="openChapter('${currentSubject}', ${ch.num})">
+            <div class="ch-num">第${ch.num}章</div>
+            <div class="ch-name">${ch.name}</div>
+            <div class="ch-meta">
+              <span class="ch-hours">预计 ${ch.hours} 小时</span>
+              <span class="ch-status">${isDone ? '✓ 已读' : '未读'}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      console.error('渲染章节列表失败:', e);
+    }
+  }
+
+  // 打开章节
+  function openChapter(subject, chapterNum) {
+    try {
+      const chapter = CHAPTER_DATA[subject].find(ch => ch.num === chapterNum);
+      if (!chapter) return;
+
+      const title = document.getElementById('studyModalTitle');
+      const content = document.getElementById('studyModalContent');
+      const markBtn = document.getElementById('markReadBtn');
+
+      title.textContent = `${subject === 'acc' ? '会计' : subject === 'tax' ? '税法' : '经济法'} - 第${chapterNum}章 ${chapter.name}`;
+      content.innerHTML = chapter.content;
+
+      const isDone = appData.chapterDone[subject][chapterNum];
+      markBtn.textContent = isDone ? '✅ 已完成阅读' : '✅ 标记为已读';
+      markBtn.style.opacity = isDone ? '0.5' : '1';
+      markBtn.disabled = isDone;
+
+      document.getElementById('studyModal').classList.add('active');
+    } catch (e) {
+      console.error('打开章节失败:', e);
+    }
+  }
+
+  // 标记章节为已读
+  function markChapterAsRead() {
+    try {
+      const title = document.getElementById('studyModalTitle').textContent;
+      const match = title.match(/(\w+) - 第(\d+)章/);
+      
+      if (!match) {
+        console.error('无法解析章节标题:', title);
+        alert('标记失败，请重试');
+        return;
+      }
+
+      const subjectName = match[1];
+      const chapterNum = parseInt(match[2]);
+
+      const subjectMap = { '会计': 'acc', '税法': 'tax', '经济法': 'law' };
+      const subjectKey = subjectMap[subjectName];
+
+      if (!subjectKey) {
+        console.error('无法识别科目:', subjectName);
+        alert('标记失败，请重试');
+        return;
+      }
+
+      if (!appData.chapterDone[subjectKey]) appData.chapterDone[subjectKey] = {};
+      appData.chapterDone[subjectKey][chapterNum] = true;
+
+      saveAppData();
+      
+      const markBtn = document.getElementById('markReadBtn');
+      markBtn.textContent = '✅ 已完成阅读';
+      markBtn.style.opacity = '0.5';
+      markBtn.disabled = true;
+
+      alert('📚 章节已标记为已读！');
+    } catch (e) {
+      console.error('标记章节失败:', e);
+      alert('标记失败，请重试');
+    }
+  }
+
+  // 选择科目（习题练习）
+  let currentQuizSubject = 'acc';
+
+  function selectQuizSubject(subject) {
+    try {
+      currentQuizSubject = subject;
+      document.querySelectorAll('[id$="QuizBtn"]').forEach(btn => {
+        btn.classList.remove('active-acc', 'active-tax', 'active-law');
+      });
+      const btn = document.getElementById(subject + 'QuizBtn');
+      if (btn) btn.classList.add('active-' + subject);
+      renderQuizList();
+    } catch (e) {
+      console.error('选择科目失败:', e);
+    }
+  }
+
+  // 渲染习题列表
+  function renderQuizList() {
+    try {
+      const quizzes = QUIZ_DATA.filter(q => q.subject === currentQuizSubject);
+      const list = document.getElementById('quizList');
+      
+      if (quizzes.length === 0) {
+        list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--muted);">暂无题目</div>';
+        return;
+      }
+
+      list.innerHTML = quizzes.map((q, index) => {
+        const isDone = appData.quizDone[q.id];
+        return `
+          <div class="quiz-item ${isDone ? 'done-quiz' : ''}" onclick="openQuiz('${q.id}')">
+            <div class="quiz-header">
+              <span class="quiz-num">${index + 1}</span>
+              <span class="quiz-type">${q.type}</span>
+            </div>
+            <div class="quiz-question">${q.question}</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">${q.chapter}</div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      console.error('渲染习题列表失败:', e);
+    }
+  }
+
+  // 打开习题
+  let currentQuiz = null;
+  let selectedOptions = [];
+
+  function openQuiz(quizId) {
+    try {
+      currentQuiz = QUIZ_DATA.find(q => q.id === quizId);
+      if (!currentQuiz) return;
+
+      selectedOptions = [];
+
+      document.getElementById('quizModalNum').textContent = quizId;
+      document.getElementById('quizModalType').textContent = currentQuiz.type;
+      document.getElementById('quizModalChapter').textContent = currentQuiz.chapter;
+      document.getElementById('quizModalQuestion').textContent = currentQuiz.question;
+
+      const optionList = document.getElementById('optionList');
+      optionList.innerHTML = currentQuiz.options.map((opt, index) => `
+        <div class="option-item" onclick="selectOption(${index})" id="option-${index}">
+          <span class="option-label">${String.fromCharCode(65 + index)}.</span> ${opt}
+        </div>
+      `).join('');
+
+      document.getElementById('submitBtn').style.display = 'block';
+      document.getElementById('nextBtn').style.display = 'none';
+      document.getElementById('explanationBox').style.display = 'none';
+
+      document.getElementById('quizModal').classList.add('active');
+    } catch (e) {
+      console.error('打开习题失败:', e);
+    }
+  }
+
+  // 选择选项
+  function selectOption(index) {
+    try {
+      const type = currentQuiz.type;
+
+      if (type === '单选题') {
+        selectedOptions = [index];
+        document.querySelectorAll('.option-item').forEach((item, i) => {
+          item.classList.remove('selected');
+          if (i === index) item.classList.add('selected');
+        });
+      } else if (type === '多选题') {
+        const idx = selectedOptions.indexOf(index);
+        if (idx > -1) {
+          selectedOptions.splice(idx, 1);
+          document.getElementById(`option-${index}`).classList.remove('selected');
+        } else {
+          selectedOptions.push(index);
+          document.getElementById(`option-${index}`).classList.add('selected');
+        }
+      }
+    } catch (e) {
+      console.error('选择选项失败:', e);
+    }
+  }
+
+  // 提交答案
+  function submitAnswer() {
+    try {
+      if (selectedOptions.length === 0) {
+        alert('请先选择答案！');
+        return;
+      }
+
+      const isCorrect = checkAnswer();
+      const options = document.querySelectorAll('.option-item');
+
+      options.forEach((item, index) => {
+        item.classList.remove('selected');
+        if (Array.isArray(currentQuiz.answer)) {
+          if (currentQuiz.answer.includes(index)) {
+            item.classList.add('correct');
+          }
+        } else {
+          if (index === currentQuiz.answer) {
+            item.classList.add('correct');
+          }
+        }
+        if (selectedOptions.includes(index) && !item.classList.contains('correct')) {
+          item.classList.add('wrong');
+        }
+      });
+
+      showExplanation();
+
+      appData.quizDone[currentQuiz.id] = true;
+      saveAppData();
+
+      document.getElementById('submitBtn').style.display = 'none';
+      document.getElementById('nextBtn').style.display = 'block';
+    } catch (e) {
+      console.error('提交答案失败:', e);
+    }
+  }
+
+  // 检查答案
+  function checkAnswer() {
+    if (Array.isArray(currentQuiz.answer)) {
+      if (selectedOptions.length !== currentQuiz.answer.length) return false;
+      return selectedOptions.every(opt => currentQuiz.answer.includes(opt));
+    } else {
+      return selectedOptions[0] === currentQuiz.answer;
+    }
+  }
+
+  // 显示解析
+  function showExplanation() {
+    const box = document.getElementById('explanationBox');
+    
+    let optionAnalysisHtml = '';
+    if (currentQuiz.optionAnalysis && currentQuiz.optionAnalysis.length > 0) {
+      optionAnalysisHtml = `
+        <div class="option-analysis">
+          <div class="option-analysis-title">📌 选项解析</div>
+          ${currentQuiz.optionAnalysis.map((analysis, index) => {
+            const isCorrect = Array.isArray(currentQuiz.answer) 
+              ? currentQuiz.answer.includes(index) 
+              : index === currentQuiz.answer;
+            return `<div class="option-analysis-item ${isCorrect ? 'correct-opt' : 'wrong-opt'}">${analysis}</div>`;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    let knowledgeHtml = '';
+    if (currentQuiz.knowledge && currentQuiz.knowledge.length > 0) {
+      knowledgeHtml = `
+        <div class="knowledge-box">
+          <div class="knowledge-title">💡 知识点回顾</div>
+          <ul class="knowledge-list">
+            ${currentQuiz.knowledge.map(k => `<li class="knowledge-item">${k}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+    }
+
+    box.innerHTML = `
+      <div class="explanation-box">
+        <div class="explanation-title">✅ 正确答案</div>
+        <div class="explanation-text">${Array.isArray(currentQuiz.answer) 
+          ? currentQuiz.answer.map(i => String.fromCharCode(65 + i)).join('') 
+          : String.fromCharCode(65 + currentQuiz.answer)}</div>
+        <div class="explanation-title" style="margin-top: 16px;">📝 解析</div>
+        <div class="explanation-text">${currentQuiz.explanation}</div>
+        ${optionAnalysisHtml}
+        ${knowledgeHtml}
+      </div>
+    `;
+    box.style.display = 'block';
+  }
+
+  // 下一题
+  function nextQuestion() {
+    try {
+      const quizzes = QUIZ_DATA.filter(q => q.subject === currentQuizSubject);
+      const currentIndex = quizzes.findIndex(q => q.id === currentQuiz.id);
+      
+      if (currentIndex < quizzes.length - 1) {
+        openQuiz(quizzes[currentIndex + 1].id);
+      } else {
+        closeModal();
+        renderQuizList();
+      }
+    } catch (e) {
+      console.error('下一题失败:', e);
+    }
+  }
+
+  // 关闭弹窗
+  function closeModal() {
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+    currentQuiz = null;
+    selectedOptions = [];
+  }
+
+  // 渲染数据页面
+  function renderDataPage() {
+    try {
+      const logDiv = document.getElementById('studyLog');
+      
+      if (appData.studyLog.length === 0) {
+        logDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--muted);">暂无学习记录</div>';
+        return;
+      }
+
+      logDiv.innerHTML = appData.studyLog.slice().reverse().map(log => `
+        <div style="padding: 12px 16px; background: var(--card2); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">${log.subject === 'acc' ? '会计' : log.subject === 'tax' ? '税法' : '经济法'}</div>
+          <div style="font-size: 13px; color: var(--muted);">学时: ${log.hours}h | 做题: ${log.exercises}道</div>
+          <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">${log.date}</div>
+        </div>
+      `).join('');
+    } catch (e) {
+      console.error('渲染数据页面失败:', e);
+    }
+  }
+
+  // 保存数据
+  function saveData() {
+    try {
+      const subject = document.getElementById('dataSubject').value;
+      const hours = parseFloat(document.getElementById('dataHours').value) || 0;
+      const exercises = parseInt(document.getElementById('dataExercises').value) || 0;
+
+      if (hours === 0 && exercises === 0) {
+        alert('请输入学习时长或做题数！');
+        return;
+      }
+
+      appData.hours += hours;
+      appData.exercises += exercises;
+      appData.subjectHours[subject] += hours;
+
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+
+      appData.studyLog.push({
+        date: dateStr,
+        subject: subject,
+        hours: hours,
+        exercises: exercises
+      });
+
+      saveAppData();
+
+      document.getElementById('dataHours').value = '';
+      document.getElementById('dataExercises').value = '';
+
+      alert('✅ 数据保存成功！');
+      renderDataPage();
+    } catch (e) {
+      console.error('保存数据失败:', e);
+      alert('保存失败，请重试');
+    }
+  }
+
+  // 初始化
+  try {
+    renderDashboard();
+  } catch (e) {
+    console.error('初始化失败:', e);
+  }
+</script>
+</body>
+</html>

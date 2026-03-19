@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPA 2026 线上学习系统 - 云同步版</title>
+<!-- 腾讯云COS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --acc: #e74c8c;
+    --tax: #3b82f6;
+    --law: #10b981;
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card2: #243447;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #334155;
+    --success: #22c55e;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --highlight-red: #ff6b6b;
+    --highlight-blue: #4dabf7;
+    --highlight-yellow: #ffd43b;
+    --bg-red: rgba(255,107,107,0.1);
+    --bg-blue: rgba(77,171,247,0.1);
+    --bg-yellow: rgba(255,212,59,0.1);
+    --border-red: rgba(255,107,107,0.3);
+    --border-blue: rgba(77,171,247,0.3);
+    --border-yellow: rgba(255,212,59,0.3);
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+
+  .top-bar {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .top-bar h1 { font-size: 18px; font-weight: 700; }
+  .top-bar h1 span { color: var(--warn); }
+  .sync-status {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sync-status.synced { border-color: var(--success); color: var(--success); }
+  .sync-status.syncing { border-color: var(--warn); color: var(--warn); }
+  .sync-status.error { border-color: var(--danger); color: var(--danger); }
+  .sync-icon { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .sync-status.syncing .sync-icon { animation: pulse 1s infinite; }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .nav-tabs { display: flex; gap: 8px; }
+  .nav-tab {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; transition: all 0.2s;
+  }
+  .nav-tab:hover { background: var(--card2); }
+  .nav-tab.active { background: var(--tax); border-color: var(--tax); color: white; }
+
+  .main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } }
+  .stat-card {
+    background: var(--card); border-radius: 16px; padding: 20px;
+    border: 1px solid var(--border); text-align: center;
+  }
+  .stat-num { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+  .stat-num.acc { color: var(--acc); }
+  .stat-num.tax { color: var(--tax); }
+  .stat-num.law { color: var(--law); }
+  .stat-label { font-size: 13px; color: var(--muted); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .today-card {
+    background: var(--card); border-radius: 16px; padding: 20px;
+    border: 1px solid var(--border); margin-bottom: 20px;
+  }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .card-title { font-size: 16px; font-weight: 700; }
+  .task-list { display: flex; flex-direction: column; gap: 10px; }
+  .task-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; background: var(--card2);
+    border-radius: 12px; border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .task-item:hover { border-color: var(--tax); }
+  .task-item.done { opacity: 0.6; border-color: var(--success); }
+  .task-item.done .task-name { text-decoration: line-through; color: var(--muted); }
+  .task-cb { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--muted); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s; }
+  .task-item.done .task-cb { background: var(--success); border-color: var(--success); color: white; }
+  .task-name { flex: 1; font-size: 14px; }
+  .task-tag { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; }
+  .tag-must { background: rgba(239,68,68,0.2); color: var(--danger); }
+  .tag-optional { background: rgba(59,130,246,0.2); color: var(--tax); }
+
+  .subject-select { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .subject-btn {
+    padding: 12px 24px; border-radius: 12px; border: 2px solid var(--border);
+    background: var(--card2); color: var(--muted); cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;
+  }
+  .subject-btn:hover { border-color: var(--muted); }
+  .subject-btn.active-acc { background: var(--acc); border-color: var(--acc); color: white; }
+  .subject-btn.active-tax { background: var(--tax); border-color: var(--tax); color: white; }
+  .subject-btn.active-law { background: var(--law); border-color: var(--law); color: white; }
+
+  .chapter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .chapter-card {
+    background: var(--card2); border-radius: 12px; padding: 16px;
+    border: 2px solid var(--border); cursor: pointer; transition: all 0.2s;
+  }
+  .chapter-card:hover { border-color: var(--tax); transform: translateY(-2px); }
+  .chapter-card.done-ch { border-color: var(--success); opacity: 0.8; }
+  .chapter-card.current-ch { border-color: var(--warn); box-shadow: 0 0 20px rgba(245,158,11,0.2); }
+  .ch-num { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .ch-name { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  .ch-meta { display: flex; justify-content: space-between; align-items: center; }
+  .ch-hours { font-size: 12px; color: var(--muted); }
+  .ch-status { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: var(--card); }
+
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-content {
+    background: var(--card); border-radius: 16px; padding: 24px;
+    max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto;
+    border: 1px solid var(--border);
+  }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .modal-title { font-size: 18px; font-weight: 700; }
+  .close-btn { background: none; border: none; color: var(--muted); font-size: 24px; cursor: pointer; }
+  .close-btn:hover { color: var(--text); }
+
+  .study-content { font-size: 14px; line-height: 1.8; }
+  .study-content h1 { font-size: 24px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+  .study-content h2 { font-size: 20px; font-weight: 700; margin: 24px 0 16px; color: var(--text); padding-left: 12px; border-left: 4px solid var(--accent); }
+  .study-content p { margin-bottom: 12px; color: var(--muted); }
+  .study-content ul { margin: 12px 0; padding-left: 24px; }
+  .study-content li { margin-bottom: 8px; color: var(--muted); }
+  .study-content code { background: var(--card2); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--tax); }
+
+  .note-red {
+    background: var(--bg-red);
+    border-left: 3px solid var(--highlight-red);
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 4px;
+  }
+  .note-red::before {
+    content: '🔴 重点';
+    display: inline-block;
+    color: var(--highlight-red);
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+  .note-red-text { color: var(--highlight-red); font-weight: 600; }
+
+  .note-blue {
+    background: var(--bg-blue);
+    border-left: 3px solid var(--highlight-blue);
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 4px;
+  }
+  .note-blue::before {
+    content: '🔵 考点';
+    display: inline-block;
+    color: var(--highlight-blue);
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+  .note-blue-text { color: var(--highlight-blue); font-weight: 600; }
+
+  .note-yellow {
+    background: var(--bg-yellow);
+    border-left: 3px solid var(--highlight-yellow);
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 4px;
+  }
+  .note-yellow::before {
+    content: '🟡 难点';
+    display: inline-block;
+    color: var(--highlight-yellow);
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+  .note-yellow-text { color: var(--highlight-yellow); font-weight: 600; }
+
+  .textbook-original {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    font-style: italic;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .textbook-original::before {
+    content: '📖 教材原文';
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--warn);
+    margin-bottom: 8px;
+    font-style: normal;
+  }
+
+  .action-btn {
+    padding: 12px 24px; border-radius: 8px; border: none;
+    background: var(--tax); color: white; cursor: pointer;
+    font-size: 14px; font-weight: 600; transition: all 0.2s;
+  }
+  .action-btn:hover { background: #2563eb; }
+  .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .chapter-btn {
+    display: block; width: 100%; padding: 10px 16px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--card2); color: var(--text);
+    cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; margin-top: 16px;
+  }
+  .chapter-btn:hover { border-color: var(--tax); }
+
+  .error-display {
+    background: rgba(239,68,68,0.1); border: 1px solid var(--danger);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: none;
+  }
+  .error-display.active { display: block; }
+  .error-title { font-size: 14px; font-weight: 700; color: var(--danger); margin-bottom: 8px; }
+  .error-text { font-size: 12px; color: var(--danger); font-family: monospace; }
+
+  .success-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--success);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 2000;
+  }
+  .success-toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+  <div id="errorDisplay" class="error-display">
+    <div class="error-title">⚠️ 系统错误</div>
+    <div class="error-text" id="errorText"></div>
+  </div>
+
+  <div class="top-bar">
+    <h1>CPA <span>2026</span> 线上学习系统</h1>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div class="sync-status" id="syncStatus">
+        <span class="sync-icon"></span>
+        <span id="syncText">已连接</span>
+      </div>
+      <div class="nav-tabs">
+        <div class="nav-tab active" onclick="switchPage('dashboard')">仪表盘</div>
+        <div class="nav-tab" onclick="switchPage('study')">教材学习</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="dashboardPage" class="page active">
+      <div class="dashboard-grid">
+        <div class="stat-card">
+          <div class="stat-num acc" id="totalHours">0</div>
+          <div class="stat-label">累计学时</div>
+          <div class="stat-sub">会计: <span id="accHours">0</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="totalExercises" style="color: var(--tax);">0</div>
+          <div class="stat-label">累计做题</div>
+          <div class="stat-sub">今日: <span id="todayExercises">0</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="streakDays" style="color: var(--law);">0</div>
+          <div class="stat-label">连续学习</div>
+          <div class="stat-sub">打卡天数</div>
+        </div>
+      </div>
+
+      <div class="today-card">
+        <div class="card-header">
+          <div class="card-title">📅 今日学习任务</div>
+          <div style="font-size: 12px; color: var(--muted);" id="todayDate"></div>
+        </div>
+        <div class="task-list" id="taskList"></div>
+      </div>
+    </div>
+
+    <div id="studyPage" class="page">
+      <div class="subject-select">
+        <div class="subject-btn active-acc" id="accBtn" onclick="selectSubject('acc')">📚 会计</div>
+      </div>
+      <div class="chapter-grid" id="chapterGrid"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="studyModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="studyModalTitle">章节详情</div>
+        <button class="close-btn" onclick="closeModal()">×</button>
+      </div>
+      <div class="study-content" id="studyModalContent"></div>
+      <button class="chapter-btn" id="markReadBtn" onclick="markChapterAsRead()">✅ 标记为已读</button>
+    </div>
+  </div>
+
+  <div class="success-toast" id="successToast">✅ 数据已同步到云端</div>
+
+<script>
+  // 🔧 云存储配置 - 请替换为你的配置
+  const COS_CONFIG = {
+    bucket: 'cpa-study-data-你的appid', // 你的存储桶名称
+    region: 'ap-beijing', // 你的存储桶地域
+    secretId: '你的SecretId',
+    secretKey: '你的SecretKey'
+  };
+
+  // 获取或生成用户ID
+  function getUserId() {
+    let userId = localStorage.getItem('cpaUserId');
+    if (!userId) {
+      userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('cpaUserId', userId);
+    }
+    return userId;
+  }
+
+  const userId = getUserId();
+
+  // 初始化COS客户端
+  let cos = null;
+  let cloudSyncEnabled = false;
+
+  try {
+    if (typeof COS !== 'undefined' && COS_CONFIG.secretId && COS_CONFIG.secretId !== '你的SecretId') {
+      cos = new COS({
+        getAuthorization: function (options, callback) {
+          callback({
+            TmpSecretId: COS_CONFIG.secretId,
+            TmpSecretKey: COS_CONFIG.secretKey,
+          });
+        }
+      });
+      cloudSyncEnabled = true;
+      console.log('✅ 云存储已启用');
+    } else {
+      console.log('⚠️ 云存储未配置，使用本地存储');
+    }
+  } catch (e) {
+    console.error('云存储初始化失败:', e);
+  }
+
+  // 更新同步状态
+  function updateSyncStatus(status, text) {
+    const statusEl = document.getElementById('syncStatus');
+    const textEl = document.getElementById('syncText');
+    
+    statusEl.classList.remove('synced', 'syncing', 'error');
+    statusEl.classList.add(status);
+    textEl.textContent = text;
+  }
+
+  // 从云端加载数据
+  async function loadFromCloud() {
+    if (!cloudSyncEnabled || !cos) return null;
+
+    try {
+      updateSyncStatus('syncing', '正在同步...');
+      
+      const result = await cos.getObject({
+        Bucket: COS_CONFIG.bucket,
+        Region: COS_CONFIG.region,
+        Key: `users/${userId}/study-progress.json`,
+      });
+
+      if (result.statusCode === 200 && result.Body) {
+        const data = JSON.parse(result.Body);
+        updateSyncStatus('synced', '已同步');
+        return data;
+      }
+      
+      updateSyncStatus('synced', '本地模式');
+      return null;
+    } catch (e) {
+      console.error('从云端加载数据失败:', e);
+      updateSyncStatus('error', '同步失败');
+      return null;
+    }
+  }
+
+  // 保存数据到云端
+  async function saveToCloud(data) {
+    if (!cloudSyncEnabled || !cos) return;
+
+    try {
+      updateSyncStatus('syncing', '正在保存...');
+      
+      await cos.putObject({
+        Bucket: COS_CONFIG.bucket,
+        Region: COS_CONFIG.region,
+        Key: `users/${userId}/study-progress.json`,
+        Body: JSON.stringify(data),
+      });
+
+      updateSyncStatus('synced', '已同步');
+      showToast('✅ 数据已同步到云端');
+    } catch (e) {
+      console.error('保存到云端失败:', e);
+      updateSyncStatus('error', '保存失败');
+    }
+  }
+
+  // 显示成功提示
+  function showToast(message) {
+    const toast = document.getElementById('successToast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+
+  // 应用数据
+  let appData = {};
+  
+  // 从localStorage加载数据
+  try {
+    const savedData = localStorage.getItem('cpaStudyData');
+    if (savedData) {
+      appData = JSON.parse(savedData);
+    }
+  } catch (e) {
+    console.error('加载本地数据失败:', e);
+  }
+
+  // 初始化数据
+  if (!appData.hours) appData.hours = 0;
+  if (!appData.exercises) appData.exercises = 0;
+  if (!appData.streak) appData.streak = 0;
+  if (!appData.chapterDone) appData.chapterDone = { acc: {} };
+  if (!appData.subjectHours) appData.subjectHours = { acc: 0, tax: 0, law: 0 };
+  if (!appData.todayTasks) {
+    appData.todayTasks = {
+      date: '',
+      tasks: [
+        { id: 1, name: '精读教材（会计第1章）', done: false, tag: '必须' },
+        { id: 2, name: '完成章节练习题（≥40道）', done: false, tag: '必须' },
+        { id: 3, name: '整理错题并记录', done: false, tag: '必须' },
+        { id: 4, name: '录入学习数据（学时/做题数）', done: false, tag: '必须' }
+      ]
+    };
+  }
+
+  // 章节数据
+  const CHAPTER_DATA = {
+    acc: [
+      { 
+        num: 1, 
+        name: '总论', 
+        hours: 8, 
+        content: `
+<div class="study-content">
+  <h1>第一章 总论</h1>
+  
+  <h2>一、会计基本概念</h2>
+  <div class="textbook-original">
+    会计是以货币为主要计量单位，运用专门的方法，核算和监督一个单位经济活动的一种经济管理工作。
+  </div>
+
+  <div class="note-red">
+    <p><strong>会计的基本职能</strong></p>
+    <ul>
+      <li><strong>核算职能</strong>：记账、算账、报账</li>
+      <li><strong>监督职能</strong>：审查经济活动的真实性、合法性</li>
+    </ul>
+    <p class="note-red-text">核算是基础，监督是保障</p>
+  </div>
+
+  <h2>二、会计基本假设</h2>
+  <div class="note-blue">
+    <p><strong>四大基本假设：</strong></p>
+    <ul>
+      <li><strong>会计主体</strong>：明确核算的空间范围</li>
+      <li><strong>持续经营</strong>：企业会持续经营下去</li>
+      <li><strong>会计分期</strong>：将经营活动划分为期间</li>
+      <li><strong>货币计量</strong>：以货币为主要计量单位</li>
+    </ul>
+  </div>
+
+  <h2>三、会计信息质量要求</h2>
+  <div class="note-red">
+    <p><strong>八项质量要求：</strong></p>
+    <ol>
+      <li>可靠性</li>
+      <li>相关性</li>
+      <li>可理解性</li>
+      <li>可比性</li>
+      <li class="note-red-text">实质重于形式</li>
+      <li>重要性</li>
+      <li class="note-red-text">谨慎性</li>
+      <li>及时性</li>
+    </ol>
+  </div>
+
+  <div class="note-yellow">
+    <p><strong>实质重于形式</strong></p>
+    <p class="note-yellow-text">按照经济实质而非法律形式进行会计处理</p>
+    <p><strong>典型应用：</strong></p>
+    <ul>
+      <li>融资租入固定资产视同自有</li>
+      <li>售后回购不终止确认</li>
+    </ul>
+  </div>
+</div>
+        `
+      },
+      { 
+        num: 2, 
+        name: '存货', 
+        hours: 10, 
+        content: `
+<div class="study-content">
+  <h1>第二章 存货</h1>
+  
+  <h2>一、存货的定义与确认</h2>
+  <div class="textbook-original">
+    存货是指企业在日常活动中持有以备出售的产成品或商品、处在生产过程中的在产品、在生产过程或提供劳务过程中耗用的材料和物料等。
+  </div>
+
+  <div class="note-blue">
+    <p><strong>存货的范围：</strong></p>
+    <ul>
+      <li>原材料、在产品、半成品、库存商品</li>
+      <li>周转材料（包装物、低值易耗品）</li>
+      <li>委托代销商品</li>
+    </ul>
+  </div>
+
+  <h2>二、存货的初始计量</h2>
+  <div class="note-red">
+    <p><strong>存货成本构成：</strong></p>
+    <ul>
+      <li><strong>采购成本</strong>：购买价款、相关税费、运输费、装卸费、保险费</li>
+      <li><strong>加工成本</strong>：直接人工、制造费用</li>
+      <li><strong>其他成本</strong>：符合资本化条件的设计费用</li>
+    </ul>
+  </div>
+
+  <h2>三、存货的发出计价</h2>
+  <div class="note-blue">
+    <p><strong>计价方法：</strong></p>
+    <ul>
+      <li>先进先出法</li>
+      <li>加权平均法</li>
+      <li>移动加权平均法</li>
+      <li>个别计价法</li>
+    </ul>
+    <p class="note-blue-text">⚠️ 后进先出法已取消</p>
+  </div>
+
+  <h2>四、存货的期末计量</h2>
+  <div class="note-red">
+    <p><strong>成本与可变现净值孰低</strong></p>
+    <p>可变现净值 = 估计售价 - 估计销售费用 - 估计相关税费</p>
+  </div>
+</div>
+        `
+      }
+    ]
+  };
+
+  // 保存数据
+  async function saveAppData() {
+    try {
+      // 保存到localStorage
+      localStorage.setItem('cpaStudyData', JSON.stringify(appData));
+      
+      // 同步到云端
+      await saveToCloud(appData);
+    } catch (e) {
+      console.error('保存数据失败:', e);
+    }
+  }
+
+  // 页面切换
+  function switchPage(page) {
+    try {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      
+      document.getElementById(page + 'Page').classList.add('active');
+      document.querySelectorAll('.nav-tab').forEach(t => {
+        if (t.textContent.includes(
+          page === 'dashboard' ? '仪表盘' : '教材'
+        )) t.classList.add('active');
+      });
+
+      if (page === 'dashboard') renderDashboard();
+      if (page === 'study') renderChapterGrid();
+    } catch (e) {
+      console.error('页面切换失败:', e);
+    }
+  }
+
+  // 渲染仪表盘
+  function renderDashboard() {
+    try {
+      document.getElementById('totalHours').textContent = appData.hours;
+      document.getElementById('accHours').textContent = appData.subjectHours.acc;
+      document.getElementById('totalExercises').textContent = appData.exercises;
+      document.getElementById('streakDays').textContent = appData.streak;
+
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+      document.getElementById('todayDate').textContent = dateStr;
+
+      const taskList = document.getElementById('taskList');
+      taskList.innerHTML = appData.todayTasks.tasks.map(task => `
+        <div class="task-item ${task.done ? 'done' : ''}" onclick="toggleTask(${task.id})">
+          <div class="task-cb">${task.done ? '✓' : ''}</div>
+          <div class="task-name">${task.name}</div>
+          <div class="task-tag ${task.tag === '必须' ? 'tag-must' : 'tag-optional'}">${task.tag}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('todayExercises').textContent = '0';
+    } catch (e) {
+      console.error('渲染仪表盘失败:', e);
+    }
+  }
+
+  // 切换任务状态
+  async function toggleTask(taskId) {
+    try {
+      const task = appData.todayTasks.tasks.find(t => t.id === taskId);
+      if (task) {
+        task.done = !task.done;
+        await saveAppData();
+        renderDashboard();
+      }
+    } catch (e) {
+      console.error('切换任务状态失败:', e);
+    }
+  }
+
+  // 选择科目
+  let currentSubject = 'acc';
+
+  function selectSubject(subject) {
+    try {
+      currentSubject = subject;
+      document.querySelectorAll('[id$="Btn"]').forEach(btn => {
+        btn.classList.remove('active-acc', 'active-tax', 'active-law');
+      });
+      const btn = document.getElementById(subject + 'Btn');
+      if (btn) btn.classList.add('active-' + subject);
+      renderChapterGrid();
+    } catch (e) {
+      console.error('选择科目失败:', e);
+    }
+  }
+
+  // 渲染章节列表
+  function renderChapterGrid() {
+    try {
+      const chapters = CHAPTER_DATA[currentSubject] || [];
+      const doneChapters = appData.chapterDone[currentSubject] || {};
+
+      const grid = document.getElementById('chapterGrid');
+      grid.innerHTML = chapters.map(ch => {
+        const isDone = doneChapters[ch.num];
+        return `
+          <div class="chapter-card ${isDone ? 'done-ch' : ''}" onclick="openChapter('${currentSubject}', ${ch.num})">
+            <div class="ch-num">第${ch.num}章</div>
+            <div class="ch-name">${ch.name}</div>
+            <div class="ch-meta">
+              <span class="ch-hours">预计 ${ch.hours} 小时</span>
+              <span class="ch-status">${isDone ? '✓ 已读' : '未读'}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      console.error('渲染章节列表失败:', e);
+    }
+  }
+
+  // 打开章节
+  function openChapter(subject, chapterNum) {
+    try {
+      const chapter = CHAPTER_DATA[subject].find(ch => ch.num === chapterNum);
+      if (!chapter) return;
+
+      const title = document.getElementById('studyModalTitle');
+      const content = document.getElementById('studyModalContent');
+      const markBtn = document.getElementById('markReadBtn');
+
+      title.textContent = `会计 - 第${chapterNum}章 ${chapter.name}`;
+      content.innerHTML = chapter.content;
+
+      const isDone = appData.chapterDone[subject][chapterNum];
+      markBtn.textContent = isDone ? '✅ 已完成阅读' : '✅ 标记为已读';
+      markBtn.style.opacity = isDone ? '0.5' : '1';
+      markBtn.disabled = isDone;
+
+      document.getElementById('studyModal').classList.add('active');
+    } catch (e) {
+      console.error('打开章节失败:', e);
+    }
+  }
+
+  // 标记章节为已读
+  async function markChapterAsRead() {
+    try {
+      const title = document.getElementById('studyModalTitle').textContent;
+      const match = title.match(/(\w+) - 第(\d+)章/);
+      
+      if (!match) {
+        alert('标记失败，请重试');
+        return;
+      }
+
+      const subjectName = match[1];
+      const chapterNum = parseInt(match[2]);
+      const subjectMap = { '会计': 'acc', '税法': 'tax', '经济法': 'law' };
+      const subjectKey = subjectMap[subjectName];
+
+      if (!subjectKey) {
+        alert('标记失败，请重试');
+        return;
+      }
+
+      if (!appData.chapterDone[subjectKey]) appData.chapterDone[subjectKey] = {};
+      appData.chapterDone[subjectKey][chapterNum] = true;
+
+      await saveAppData();
+      
+      const markBtn = document.getElementById('markReadBtn');
+      markBtn.textContent = '✅ 已完成阅读';
+      markBtn.style.opacity = '0.5';
+      markBtn.disabled = true;
+
+      alert('📚 章节已标记为已读！');
+    } catch (e) {
+      console.error('标记章节失败:', e);
+      alert('标记失败，请重试');
+    }
+  }
+
+  // 关闭弹窗
+  function closeModal() {
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+  }
+
+  // 初始化
+  async function init() {
+    try {
+      // 尝试从云端加载数据
+      const cloudData = await loadFromCloud();
+      if (cloudData) {
+        appData = cloudData;
+        console.log('✅ 从云端加载数据成功');
+      }
+      
+      renderDashboard();
+    } catch (e) {
+      console.error('初始化失败:', e);
+      renderDashboard();
+    }
+  }
+
+  // 启动应用
+  init();
+</script>
+</body>
+</html>
